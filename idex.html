@@ -1,0 +1,1910 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Análise de Ordens de Serviço</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+/* ============================================================
+   TOKENS — MODO CLARO
+============================================================ */
+:root, [data-theme="light"]{
+  --ink:#0f172a; --ink-2:#334155; --mut:#64748b;
+  --line:rgba(15,23,42,.10); --line-soft:rgba(15,23,42,.06);
+  --glass: rgba(255,255,255,.55);
+  --glass-2: rgba(255,255,255,.72);
+  --glass-strong: rgba(255,255,255,.85);
+  --glass-border: rgba(255,255,255,.65);
+  --shadow: 0 10px 30px rgba(15,23,42,.10), 0 2px 6px rgba(15,23,42,.05);
+  --shadow-lg: 0 24px 60px rgba(15,23,42,.15);
+  --brand:#0d4a6b; --accent:#0ea5a4;
+  --c0:#16a34a; --c1:#2563eb; --c2:#d97706; --c3:#dc2626;
+  --c0-soft:rgba(22,163,74,.15);
+  --c1-soft:rgba(37,99,235,.15);
+  --c2-soft:rgba(217,119,6,.15);
+  --c3-soft:rgba(220,38,38,.15);
+  --blob-1:#a78bfa; --blob-2:#38bdf8; --blob-3:#34d399; --blob-4:#f472b6;
+  --page-bg-1:#f8fafc; --page-bg-2:#eef2ff;
+  --radius:18px; --radius-sm:12px;
+  --font:"Inter","Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+}
+/* ============================================================
+   TOKENS — MODO ESCURO
+============================================================ */
+[data-theme="dark"]{
+  --ink:#e6edf7; --ink-2:#c4cfdf; --mut:#8895ab;
+  --line:rgba(255,255,255,.10); --line-soft:rgba(255,255,255,.06);
+  --glass: rgba(20,30,52,.55);
+  --glass-2: rgba(20,30,52,.72);
+  --glass-strong: rgba(20,30,52,.85);
+  --glass-border: rgba(255,255,255,.12);
+  --shadow: 0 10px 30px rgba(0,0,0,.35), 0 2px 6px rgba(0,0,0,.25);
+  --shadow-lg: 0 24px 60px rgba(0,0,0,.55);
+  --brand:#38bdf8; --accent:#22d3ee;
+  --c0:#4ade80; --c1:#60a5fa; --c2:#fbbf24; --c3:#f87171;
+  --c0-soft:rgba(74,222,128,.16);
+  --c1-soft:rgba(96,165,250,.16);
+  --c2-soft:rgba(251,191,36,.16);
+  --c3-soft:rgba(248,113,113,.16);
+  --blob-1:#7c3aed; --blob-2:#0ea5e9; --blob-3:#10b981; --blob-4:#ec4899;
+  --page-bg-1:#070c17; --page-bg-2:#0b1220;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  color:var(--ink); font-family:var(--font); font-size:14px; line-height:1.5;
+  min-height:100vh; position:relative;
+  background:
+    radial-gradient(1200px 800px at 15% -10%, color-mix(in srgb, var(--blob-1) 45%, transparent), transparent 60%),
+    radial-gradient(1000px 700px at 90% 10%, color-mix(in srgb, var(--blob-2) 40%, transparent), transparent 55%),
+    radial-gradient(900px 900px at 50% 110%, color-mix(in srgb, var(--blob-3) 35%, transparent), transparent 55%),
+    radial-gradient(800px 600px at -10% 60%, color-mix(in srgb, var(--blob-4) 30%, transparent), transparent 60%),
+    linear-gradient(135deg, var(--page-bg-1), var(--page-bg-2));
+  background-attachment: fixed;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+/* ============================================================
+   MESH GRADIENT ANIMADO (item 3)
+============================================================ */
+body::before{
+  content:''; position:fixed; inset:-20%; z-index:-1; pointer-events:none;
+  background:
+    radial-gradient(600px 600px at var(--mx,20%) var(--my,30%),
+      color-mix(in srgb, var(--blob-1) 55%, transparent), transparent 60%),
+    radial-gradient(500px 500px at var(--nx,80%) var(--ny,70%),
+      color-mix(in srgb, var(--blob-2) 50%, transparent), transparent 60%);
+  filter: blur(60px); opacity:.6;
+  animation: meshMove 22s ease-in-out infinite alternate;
+}
+body::after{
+  content:''; position:fixed; inset:-10%; z-index:-1; pointer-events:none;
+  background:
+    radial-gradient(700px 700px at var(--px,70%) var(--py,20%),
+      color-mix(in srgb, var(--blob-3) 45%, transparent), transparent 60%),
+    radial-gradient(600px 600px at var(--qx,20%) var(--qy,80%),
+      color-mix(in srgb, var(--blob-4) 40%, transparent), transparent 60%);
+  filter: blur(70px); opacity:.5;
+  animation: meshMove2 28s ease-in-out infinite alternate;
+}
+@keyframes meshMove{
+  0%   { --mx:15%; --my:20%; --nx:85%; --ny:80%; }
+  50%  { --mx:60%; --my:70%; --nx:30%; --ny:20%; }
+  100% { --mx:25%; --my:50%; --nx:70%; --ny:35%; }
+}
+@keyframes meshMove2{
+  0%   { --px:70%; --py:15%; --qx:25%; --qy:85%; }
+  50%  { --px:30%; --py:60%; --qx:80%; --qy:30%; }
+  100% { --px:80%; --py:45%; --qx:15%; --qy:55%; }
+}
+@supports not (background: color-mix(in srgb, red, blue)){
+  body::before, body::after{ display:none }
+}
+::selection{background:var(--accent); color:#fff}
+
+/* ============================================================
+   LAYOUT
+============================================================ */
+.app-header{
+  position:sticky; top:0; z-index:20;
+  padding:14px 22px;
+  display:flex; flex-wrap:wrap; gap:12px;
+  align-items:center; justify-content:space-between;
+  /* item 1 — glass */
+  background:var(--glass-2);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border-bottom:1px solid var(--glass-border);
+  box-shadow: var(--shadow);
+}
+.app-header h1{
+  margin:0; font-size:17px; font-weight:800; letter-spacing:-.02em;
+  background:linear-gradient(120deg, var(--accent), var(--brand));
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.app-header .sub{font-size:12px; color:var(--mut); margin-top:2px}
+.header-actions{display:flex; flex-wrap:wrap; gap:8px}
+main{max-width:1500px; margin:0 auto; padding:20px}
+@media(max-width:700px){ main{padding:12px} .app-header{padding:12px 14px} }
+
+/* ============================================================
+   PAINÉIS COM GLASS (item 1)
+============================================================ */
+.panel{
+  position:relative;
+  background:var(--glass);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border:1px solid var(--glass-border);
+  border-radius:var(--radius);
+  padding:18px;
+  margin-bottom:16px;
+  box-shadow: var(--shadow);
+  transition: box-shadow .3s ease, transform .3s ease;
+}
+.panel:hover{ box-shadow: var(--shadow-lg) }
+.panel h2{
+  font-size:13px; margin:0 0 14px; font-weight:800; letter-spacing:.08em;
+  color:var(--ink); text-transform:uppercase;
+  display:flex; align-items:center; gap:8px;
+}
+.panel h2::before{
+  content:''; width:3px; height:14px; border-radius:2px;
+  background:linear-gradient(180deg, var(--accent), var(--brand));
+}
+.panel .hint{color:var(--mut); font-size:12px; line-height:1.55}
+
+/* ============================================================
+   BOTÕES
+============================================================ */
+.btn{
+  border:1px solid transparent; cursor:pointer; border-radius:11px;
+  padding:9px 14px; font-weight:600; font-size:13px;
+  font-family:inherit;
+  display:inline-flex; align-items:center; gap:6px;
+  transition: transform .12s ease, filter .12s, box-shadow .2s, background .2s;
+  white-space:nowrap; position:relative; overflow:hidden;
+}
+.btn:active{transform:translateY(1px)}
+.btn-primary{
+  background:linear-gradient(120deg, var(--accent), var(--brand));
+  color:#fff; box-shadow:0 6px 18px rgba(14,165,164,.35);
+}
+.btn-primary:hover{ filter:brightness(1.08) }
+.btn-glass{
+  background:var(--glass-2); color:var(--ink);
+  border:1px solid var(--glass-border);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.btn-glass:hover{ background:var(--glass-strong) }
+.btn-soft{background:var(--glass-2); color:var(--ink); border:1px solid var(--glass-border)}
+.btn-soft:hover{ background:var(--glass-strong) }
+.btn-danger{background:transparent; color:var(--c3); border:1px solid var(--c3)}
+.btn-danger:hover{ background:var(--c3-soft) }
+.btn-icon{padding:8px; border-radius:50%}
+
+/* Ripple (item 10 — micro interação) */
+.btn .ripple{
+  position:absolute; border-radius:50%; transform:scale(0);
+  background:rgba(255,255,255,.45); pointer-events:none;
+  animation: ripple .6s ease-out;
+}
+.btn-glass .ripple, .btn-soft .ripple{ background:rgba(14,165,164,.35) }
+@keyframes ripple{ to{ transform:scale(3); opacity:0 } }
+
+/* ============================================================
+   FORMULÁRIOS
+============================================================ */
+label.field{display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--mut); letter-spacing:.04em; text-transform:uppercase}
+input, select, textarea{
+  font-family:inherit; font-size:13px; color:var(--ink);
+  background:var(--glass-2);
+  border:1px solid var(--glass-border);
+  border-radius:11px; padding:9px 11px; outline:none;
+  transition:border-color .15s, box-shadow .15s, background .2s;
+  width:100%; max-width:100%;
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+input:focus, select:focus{
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(14,165,164,.20);
+  background:var(--glass-strong);
+}
+input[type=checkbox]{width:16px; height:16px; accent-color:var(--accent); cursor:pointer}
+input[type=file]{display:none}
+option{background:var(--page-bg-1); color:var(--ink)}
+
+/* ============================================================
+   FILTROS
+============================================================ */
+.filters-grid{
+  display:grid; gap:12px;
+  grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
+  align-items:end;
+}
+.filters-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:12px; flex-wrap:wrap}
+
+/* ============================================================
+   KPIs COM CONTADOR ANIMADO (item 6)
+============================================================ */
+.kpi-grid{
+  display:grid; gap:12px;
+  grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
+}
+.kpi{
+  position:relative; overflow:hidden;
+  background:var(--glass-2);
+  backdrop-filter: blur(14px) saturate(150%);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  border:1px solid var(--glass-border);
+  border-radius:var(--radius);
+  padding:14px 16px;
+  box-shadow: var(--shadow);
+  transition: transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .3s;
+  animation: kpiIn .45s ease backwards;
+}
+.kpi:hover{ transform:translateY(-3px); box-shadow: var(--shadow-lg) }
+.kpi::before{
+  content:''; position:absolute; left:0; top:0; bottom:0; width:4px;
+  background:linear-gradient(180deg, var(--accent), var(--brand));
+}
+.kpi.c0::before{background:linear-gradient(180deg, var(--c0), transparent)}
+.kpi.c1::before{background:linear-gradient(180deg, var(--c1), transparent)}
+.kpi.c2::before{background:linear-gradient(180deg, var(--c2), transparent)}
+.kpi.c3::before{background:linear-gradient(180deg, var(--c3), transparent)}
+.kpi.c3{ animation: glowRed 2.4s ease-in-out infinite alternate }
+@keyframes glowRed{
+  from{ box-shadow: var(--shadow), 0 0 0 rgba(220,38,38,0) }
+  to  { box-shadow: var(--shadow), 0 0 22px rgba(220,38,38,.28) }
+}
+.kpi .lbl{
+  font-size:10.5px; font-weight:800; letter-spacing:.09em;
+  color:var(--mut); text-transform:uppercase;
+}
+.kpi .val{
+  font-size:26px; font-weight:800; margin:6px 0 2px;
+  letter-spacing:-.02em; color:var(--ink);
+  font-variant-numeric:tabular-nums;
+}
+.kpi .sub{font-size:12px; color:var(--mut)}
+@keyframes kpiIn{ from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:none} }
+
+/* ============================================================
+   GRÁFICOS — item 2 (pizza clicável) e item 19 (PNG)
+============================================================ */
+.charts-grid{
+  display:grid; gap:16px;
+  grid-template-columns:repeat(auto-fit, minmax(360px, 1fr));
+}
+.chart-header{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:8px; margin-bottom:10px;
+}
+.chart-header h2{margin:0}
+.chart-actions{display:flex; gap:6px}
+.chart-actions .btn{padding:6px 10px; font-size:12px}
+.chart-box{position:relative; height:320px}
+.chart-box.tall{height:420px}
+.chart-box.pie{height:340px}
+@media(max-width:600px){ .chart-box{height:280px} .chart-box.tall{height:360px} .chart-box.pie{height:300px} }
+
+/* Pizza clicável (item 2) */
+.pie-wrap{ position:relative; cursor:pointer }
+.pie-wrap.clickable:hover{ transform: scale(1.008) }
+.pie-hint{
+  text-align:center; font-size:11.5px; color:var(--mut);
+  margin-top:6px; min-height:16px; transition: color .2s;
+}
+.pie-hint.active{ color:var(--accent); font-weight:700 }
+
+/* ============================================================
+   TABELAS
+============================================================ */
+.table-wrap{
+  overflow:auto; max-height:600px;
+  border:1px solid var(--glass-border); border-radius:var(--radius-sm);
+  background:var(--glass);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+}
+table{width:100%; border-collapse:collapse; font-size:13px}
+th, td{
+  padding:9px 12px; text-align:left;
+  border-bottom:1px solid var(--line-soft);
+  white-space:nowrap; vertical-align:middle;
+}
+thead th{
+  position:sticky; top:0; z-index:2;
+  background:color-mix(in srgb, var(--glass-strong) 92%, transparent);
+  color:var(--ink-2);
+  font-weight:800; font-size:11px; letter-spacing:.08em;
+  text-transform:uppercase; cursor:pointer; user-select:none;
+  border-bottom:1px solid var(--line);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+thead th:hover{ background:color-mix(in srgb, var(--accent) 14%, var(--glass-strong)) }
+tbody tr{ transition: background .15s ease, transform .15s ease }
+tbody tr.clickable{cursor:pointer}
+tbody tr.clickable:hover{ background:color-mix(in srgb, var(--accent) 10%, transparent) }
+td.n, th.n{text-align:right; font-variant-numeric:tabular-nums}
+td.trunc, th.trunc{max-width:260px; overflow:hidden; text-overflow:ellipsis}
+
+/* ============================================================
+   BADGES
+============================================================ */
+.badge{
+  display:inline-flex; align-items:center; gap:4px;
+  padding:3px 9px; border-radius:999px;
+  font-size:11.5px; font-weight:700; letter-spacing:.01em;
+  white-space:nowrap;
+  border:1px solid transparent;
+}
+.b0{background:var(--c0-soft); color:var(--c0); border-color:color-mix(in srgb, var(--c0) 30%, transparent)}
+.b1{background:var(--c1-soft); color:var(--c1); border-color:color-mix(in srgb, var(--c1) 30%, transparent)}
+.b2{background:var(--c2-soft); color:var(--c2); border-color:color-mix(in srgb, var(--c2) 30%, transparent)}
+.b3{background:var(--c3-soft); color:var(--c3); border-color:color-mix(in srgb, var(--c3) 30%, transparent)}
+.bx{background:var(--line-soft); color:var(--mut)}
+
+/* ============================================================
+   TOASTS
+============================================================ */
+#toasts{
+  position:fixed; top:78px; right:18px; z-index:100;
+  display:flex; flex-direction:column; gap:8px;
+  pointer-events:none;
+}
+.toast{
+  pointer-events:auto;
+  min-width:260px; max-width:380px;
+  padding:12px 16px; border-radius:14px;
+  background:var(--glass-strong); color:var(--ink);
+  border:1px solid var(--glass-border); border-left:4px solid var(--accent);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  box-shadow: var(--shadow-lg);
+  font-size:13px; font-weight:500;
+  animation:slideIn .3s cubic-bezier(.2,.9,.2,1);
+}
+.toast.ok{border-left-color:var(--c0)}
+.toast.warn{border-left-color:var(--c2)}
+.toast.err{border-left-color:var(--c3)}
+.toast .t-title{font-weight:700; margin-bottom:2px}
+.toast .t-msg{color:var(--mut); font-size:12.5px}
+@keyframes slideIn{from{transform:translateX(30px); opacity:0} to{transform:none; opacity:1}}
+
+/* ============================================================
+   EMPTY STATE
+============================================================ */
+.empty{
+  text-align:center; padding:80px 20px; color:var(--mut);
+  background:var(--glass);
+  border:1px dashed var(--glass-border);
+  border-radius:var(--radius);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+}
+.empty h3{margin:0 0 8px; color:var(--ink); font-size:18px}
+.empty p{margin:0 0 20px; font-size:13px}
+
+/* ============================================================
+   DIALOGS
+============================================================ */
+dialog{
+  border:0; padding:0; border-radius:20px;
+  width:min(760px, 94vw); max-height:90vh;
+  background:var(--glass-strong); color:var(--ink);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border:1px solid var(--glass-border);
+  box-shadow: var(--shadow-lg); overflow:hidden;
+  animation: dialogIn .3s cubic-bezier(.2,.9,.2,1);
+}
+@keyframes dialogIn{ from{opacity:0; transform:scale(.96) translateY(10px)} to{opacity:1; transform:none} }
+dialog::backdrop{ background:rgba(15,23,42,.6); backdrop-filter:blur(4px) }
+.dlg-head{
+  padding:16px 20px;
+  background:linear-gradient(120deg, var(--accent), var(--brand));
+  color:#fff; display:flex; align-items:center; justify-content:space-between;
+}
+.dlg-head b{font-size:15px}
+.dlg-head .close{
+  background:rgba(255,255,255,.18); border:0; color:#fff;
+  width:32px; height:32px; border-radius:50%; cursor:pointer;
+  font-size:16px; line-height:1; transition: background .2s;
+}
+.dlg-head .close:hover{ background:rgba(255,255,255,.3) }
+.dlg-body{padding:20px; max-height:calc(90vh - 60px); overflow:auto}
+
+/* ============================================================
+   DETALHE DA OS
+============================================================ */
+.os-big{
+  text-align:center; padding:24px;
+  background:linear-gradient(135deg,
+    color-mix(in srgb, var(--accent) 18%, transparent),
+    color-mix(in srgb, var(--brand) 18%, transparent));
+  border-radius:var(--radius); margin-bottom:16px;
+  border:1px solid var(--glass-border);
+}
+.os-big .lbl{font-size:10.5px; font-weight:800; letter-spacing:.1em; color:var(--mut); text-transform:uppercase}
+.os-big .v{
+  font-size:42px; font-weight:800; letter-spacing:-.03em; margin:6px 0 2px;
+  background:linear-gradient(120deg, var(--accent), var(--brand));
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.os-big .sub{font-size:12px; color:var(--mut)}
+.kv-grid{
+  display:grid; grid-template-columns:150px 1fr; gap:8px 16px;
+  font-size:13px; margin-bottom:12px;
+}
+.kv-grid .k{color:var(--mut); font-weight:700; font-size:11.5px; letter-spacing:.04em; text-transform:uppercase; padding-top:3px}
+.raw-fields{
+  max-height:320px; overflow:auto;
+  border:1px solid var(--glass-border); border-radius:12px;
+  padding:4px 12px; background:var(--glass);
+  font-size:12px;
+}
+.raw-fields .row{display:grid; grid-template-columns:180px 1fr; gap:10px; padding:6px 0; border-bottom:1px solid var(--line-soft)}
+.raw-fields .row:last-child{border-bottom:0}
+
+/* ============================================================
+   MAPEAMENTO
+============================================================ */
+.map-grid{
+  display:grid; gap:12px;
+  grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));
+}
+
+/* ============================================================
+   UTILITÁRIOS
+============================================================ */
+.hide{display:none !important}
+.row{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+.row.between{justify-content:space-between}
+.spacer{flex:1}
+.section-sum p{margin:8px 0; line-height:1.65}
+.section-sum b{color:var(--ink); font-weight:700}
+
+/* ============================================================
+   PAGINAÇÃO
+============================================================ */
+.pager{
+  display:flex; gap:8px; align-items:center;
+  justify-content:flex-end; flex-wrap:wrap; margin-top:12px;
+}
+.pager .info{color:var(--mut); font-size:12.5px; margin:0 6px; font-variant-numeric:tabular-nums}
+
+/* ============================================================
+   TRANSIÇÕES DE ENTRADA (item 10)
+============================================================ */
+.reveal{
+  animation: reveal .5s cubic-bezier(.2,.9,.2,1) backwards;
+}
+@keyframes reveal{
+  from{opacity:0; transform: translateY(14px)}
+  to{opacity:1; transform: none}
+}
+.view-swap{ animation: swapIn .35s ease }
+@keyframes swapIn{
+  from{opacity:0; transform: translateY(6px)}
+  to{opacity:1; transform:none}
+}
+
+/* ============================================================
+   SCROLLBAR
+============================================================ */
+::-webkit-scrollbar{width:10px; height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:color-mix(in srgb, var(--accent) 40%, var(--mut)); border-radius:6px}
+::-webkit-scrollbar-thumb:hover{background:var(--accent)}
+</style>
+</head>
+<body>
+
+<div id="toasts" aria-live="polite"></div>
+
+<header class="app-header">
+  <div>
+    <h1>Análise de Ordens de Serviço</h1>
+    <div class="sub">Abertura → fechamento em horas e minutos · processamento 100% local</div>
+  </div>
+  <div class="header-actions">
+    <input type="file" id="file" accept=".csv,text/csv">
+    <button class="btn btn-glass" id="btnTheme" title="Alternar tema">☀ Tema</button>
+    <button class="btn btn-glass" id="btnImport">📂 Importar CSV</button>
+    <button class="btn btn-glass hide" id="btnMap">🧭 Mapear</button>
+    <button class="btn btn-glass hide" id="btnClear">🗑 Limpar</button>
+  </div>
+</header>
+
+<main>
+  <!-- EMPTY STATE -->
+  <div id="empty" class="empty">
+    <h3>Nenhum arquivo carregado</h3>
+    <p>Importe um arquivo CSV com as Ordens de Serviço para começar a análise.<br>
+       Aceita UTF-8 (com/sem BOM), separador «;» ou «,» detectado automaticamente.</p>
+    <button class="btn btn-primary" onclick="document.getElementById('file').click()">📂 Selecionar CSV</button>
+  </div>
+
+  <!-- APP -->
+  <div id="app" class="hide">
+
+    <section class="panel reveal">
+      <h2>Base importada</h2>
+      <div id="baseInfo" class="hint"></div>
+    </section>
+
+    <section class="panel reveal" style="animation-delay:.05s">
+      <h2>Filtros</h2>
+      <div class="filters-grid">
+        <label class="field"><span>Assunto</span><select id="fAssunto"></select></label>
+        <label class="field"><span>Status</span>
+          <select id="fStatus">
+            <option value="">Todos</option>
+            <option>Aberta</option><option>Em andamento</option>
+            <option>Finalizada</option><option>Cancelada</option>
+          </select>
+        </label>
+        <label class="field"><span>Faixa de tempo</span>
+          <select id="fFaixa">
+            <option value="">Todas</option>
+            <option value="0">Até 24h</option>
+            <option value="1">24–48h</option>
+            <option value="2">48–72h</option>
+            <option value="3">Acima de 72h</option>
+          </select>
+        </label>
+        <label class="field"><span>Período</span>
+          <select id="fPeriodo">
+            <option value="">Todos</option>
+            <option value="hoje">Hoje</option>
+            <option value="7">Últimos 7 dias</option>
+            <option value="30">Últimos 30 dias</option>
+            <option value="mes">Mês atual</option>
+            <option value="mesant">Mês anterior</option>
+            <option value="custom">Personalizado</option>
+          </select>
+        </label>
+        <label class="field hide" id="lDe"><span>De</span><input type="date" id="fDe"></label>
+        <label class="field hide" id="lAte"><span>Até</span><input type="date" id="fAte"></label>
+        <label class="field"><span>Dia da semana (fechamento)</span>
+          <select id="fDow">
+            <option value="">Todos</option>
+            <option value="fds">Sexta a domingo</option>
+            <option value="4">Sexta</option><option value="5">Sábado</option>
+            <option value="6">Domingo</option><option value="0">Segunda</option>
+            <option value="1">Terça</option><option value="2">Quarta</option>
+            <option value="3">Quinta</option>
+          </select>
+        </label>
+        <label class="field" style="grid-column:span 2"><span>Pesquisa (OS, cliente, assunto)</span>
+          <input type="search" id="fBusca" placeholder="Digite para buscar…">
+        </label>
+        <label class="field" style="flex-direction:row;align-items:center;gap:8px;justify-content:flex-start;text-transform:none">
+          <input type="checkbox" id="fCanc"><span>Incluir canceladas</span>
+        </label>
+      </div>
+      <div class="filters-actions">
+        <button class="btn btn-soft" id="btnReset">↺ Limpar filtros</button>
+      </div>
+    </section>
+
+    <section class="panel reveal" style="animation-delay:.1s">
+      <h2>Indicadores</h2>
+      <div class="kpi-grid" id="cards1"></div>
+      <div class="kpi-grid" id="cards2" style="margin-top:12px"></div>
+    </section>
+
+    <section class="panel reveal" style="animation-delay:.15s">
+      <h2>Resumo da análise</h2>
+      <div id="resumo" class="section-sum"></div>
+    </section>
+
+    <!-- GRÁFICOS -->
+    <section class="panel reveal" style="animation-delay:.2s">
+      <div class="charts-grid">
+        <div>
+          <div class="chart-header">
+            <h2>Distribuição do tempo (finalizadas)</h2>
+            <div class="chart-actions">
+              <button class="btn btn-soft" onclick="exportChart('chDist','distribuicao_tempo')" title="Salvar PNG">🖼 PNG</button>
+            </div>
+          </div>
+          <div class="chart-box pie"><canvas id="chDist"></canvas></div>
+          <div class="pie-hint" id="pieHint">Clique em uma fatia para filtrar</div>
+        </div>
+        <div>
+          <div class="chart-header">
+            <h2>Tempo médio por assunto</h2>
+            <div class="chart-actions">
+              <button class="btn btn-soft" onclick="exportChart('chAss','tempo_por_assunto')" title="Salvar PNG">🖼 PNG</button>
+            </div>
+          </div>
+          <div class="chart-box"><canvas id="chAss"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel reveal" style="animation-delay:.25s">
+      <div class="row between">
+        <h2 style="margin:0">Evolução do tempo médio</h2>
+        <div class="row">
+          <label class="field" style="max-width:180px;text-transform:none;letter-spacing:0"><span>Agrupar por</span>
+            <select id="gran">
+              <option value="d">Dia</option>
+              <option value="w">Semana</option>
+              <option value="m" selected>Mês</option>
+            </select>
+          </label>
+          <button class="btn btn-soft" onclick="exportChart('chEvo','evolucao_tempo')" title="Salvar PNG">🖼 PNG</button>
+        </div>
+      </div>
+      <div class="chart-box tall" style="margin-top:12px"><canvas id="chEvo"></canvas></div>
+    </section>
+
+    <section class="panel reveal" style="animation-delay:.3s">
+      <div class="row between">
+        <h2 style="margin:0">Atendimento por dia da semana</h2>
+        <div class="row">
+          <label class="field" style="max-width:220px;text-transform:none;letter-spacing:0"><span>Considerar</span>
+            <select id="dowBase">
+              <option value="fe">Finalização (fechamento)</option>
+              <option value="ab">Abertura da OS</option>
+            </select>
+          </label>
+          <button class="btn btn-soft" onclick="exportChart('chDow','por_dia_semana')" title="Salvar PNG">🖼 PNG</button>
+        </div>
+      </div>
+      <div class="chart-box tall" style="margin-top:12px"><canvas id="chDow"></canvas></div>
+      <div class="table-wrap" style="margin-top:12px; max-height:none"><table id="tDow"></table></div>
+      <div id="dowTxt" class="section-sum" style="margin-top:12px"></div>
+      <p class="hint">Sexta, sábado e domingo aparecem destacados para comparar com segunda a quinta.</p>
+    </section>
+
+    <section class="panel reveal" style="animation-delay:.35s">
+      <h2>Análise por assunto</h2>
+      <div class="table-wrap" style="max-height:none"><table id="tAss"></table></div>
+      <p class="hint">Faixas consideram apenas OS finalizadas. Ordenado do maior para o menor tempo médio.</p>
+    </section>
+
+    <section class="panel reveal" style="animation-delay:.4s">
+      <h2>Análise por técnico / colaborador</h2>
+      <div class="table-wrap" style="max-height:none"><table id="tTec"></table></div>
+      <p class="hint">Baseado na coluna <code>Colaborador</code> (mapeada como «Colaborador/Técnico»). Somente OS finalizadas.</p>
+    </section>
+
+    <section class="panel reveal" style="animation-delay:.45s">
+      <h2>Ordens de Serviço</h2>
+      <div class="row between" style="margin-bottom:10px">
+        <span class="hint" id="tInfo"></span>
+        <div class="row">
+          <button class="btn btn-soft" data-exp="csv">⬇ CSV</button>
+          <button class="btn btn-soft" data-exp="xlsx">⬇ Excel</button>
+          <button class="btn btn-soft" data-exp="pdf">⬇ PDF</button>
+        </div>
+      </div>
+      <div class="table-wrap" style="max-height:640px"><table id="tOS"></table></div>
+      <div class="pager">
+        <label class="field" style="flex-direction:row;align-items:center;gap:6px;max-width:180px;text-transform:none;letter-spacing:0">
+          <span>Linhas</span>
+          <select id="psize"><option>25</option><option>50</option><option>100</option></select>
+        </label>
+        <button class="btn btn-soft" id="prev">◀</button>
+        <span class="info" id="pinfo"></span>
+        <button class="btn btn-soft" id="next">▶</button>
+      </div>
+    </section>
+
+    <section class="panel reveal" style="animation-delay:.5s">
+      <h2>Validação da base</h2>
+      <div class="kpi-grid" id="vCards"></div>
+      <div class="table-wrap" style="margin-top:12px; max-height:380px"><table id="tVal"></table></div>
+      <p class="hint" id="vNote"></p>
+    </section>
+  </div>
+</main>
+
+<!-- DIALOG: mapeamento -->
+<dialog id="mapDlg">
+  <div class="dlg-head">
+    <b>Mapeamento das colunas</b>
+    <button class="close" onclick="document.getElementById('mapDlg').close()">✕</button>
+  </div>
+  <div class="dlg-body">
+    <p class="hint" style="margin-top:0">Escolha qual coluna do CSV corresponde a cada campo. Uma coluna de data com hora (dd/mm/aaaa hh:mm:ss) dispensa a coluna de hora.</p>
+    <div class="map-grid" id="mapForm"></div>
+    <div class="row" style="margin-top:14px; justify-content:flex-end">
+      <button class="btn btn-primary" id="mapOk">Aplicar mapeamento</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- DIALOG: detalhe OS -->
+<dialog id="osDlg">
+  <div class="dlg-head">
+    <b id="osTitle">OS</b>
+    <button class="close" onclick="document.getElementById('osDlg').close()">✕</button>
+  </div>
+  <div class="dlg-body" id="osBody"></div>
+</dialog>
+
+<script>
+"use strict";
+/* ============================================================
+   CONFIGURAÇÃO — campos reconhecidos automaticamente
+============================================================ */
+const FIELDS = [
+  { k:'id',       label:'Número da OS',       re:/^(id|os|nr ?os|n ?os|numero( da)? os|numero|codigo|ordem( de servico)?|chamado)$/ },
+  { k:'cliente',  label:'Cliente',            re:/^(cliente|nome( do)? cliente|razao social)$/ },
+  { k:'assunto',  label:'Assunto',            re:/^(assunto|motivo|tipo( de)? (servico|atendimento)|categoria)$/ },
+  { k:'dAb',      label:'Data de abertura',   re:/^(data( de)? |dt ?)?abertura$/ },
+  { k:'hAb',      label:'Hora de abertura',   re:/^(hora|hr)( de)? abertura$/ },
+  { k:'dFe',      label:'Data de fechamento', re:/^(data( de)? |dt ?)?(fechamento|encerramento|finalizacao)$/ },
+  { k:'hFe',      label:'Hora de fechamento', re:/^(hora|hr)( de)? (fechamento|encerramento|finalizacao)$/ },
+  { k:'status',   label:'Status',             re:/^(status|situacao)$/ },
+  { k:'colab',    label:'Colaborador/Técnico',re:/^(colaborador|tecnico|tecnico responsavel|responsavel|atendente|funcionario)$/ },
+  { k:'sla',      label:'SLA (coluna do CSV)',re:/^(sla|nivel( de)? servico)$/ }
+];
+const FAIXAS = ['Até 24h','24–48h','48–72h','Acima de 72h'];
+const CORES  = ['#16a34a','#2563eb','#d97706','#dc2626'];
+const CORES_LIGHT = ['#4ade80','#60a5fa','#fbbf24','#f87171'];
+const SIMBOL = ['●','◆','▲','■'];
+const DIAS   = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
+
+const State = {
+  headers:[], raw:[], map:{}, rows:[], view:[],
+  sort:{ k:'h', dir:-1 }, page:0, pageSize:25,
+  charts:{}, fileName:'', sep:',',
+  pieActiveFaixa: null
+};
+
+/* ============================================================
+   UTILS
+============================================================ */
+const $  = id => document.getElementById(id);
+const $$ = sel => document.querySelectorAll(sel);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const p2 = n => String(n).padStart(2,'0');
+const norm = s => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  .toLowerCase().replace(/[_\-.]+/g,' ').replace(/\s+/g,' ').trim();
+const fmtN = (n, d=0) => Number(n ?? 0).toLocaleString('pt-BR', { minimumFractionDigits:d, maximumFractionDigits:d });
+const fmtDT = d => d ? `${p2(d.getDate())}/${p2(d.getMonth()+1)}/${d.getFullYear()} ${p2(d.getHours())}:${p2(d.getMinutes())}` : '—';
+const fmtH = h => {
+  if (h == null || isNaN(h)) return '—';
+  let m = Math.round(h * 60);
+  const sinal = m < 0 ? '-' : '';
+  m = Math.abs(m);
+  return `${sinal}${Math.floor(m/60)}h${p2(m%60)}min`;
+};
+const pct  = (a,b) => b ? fmtN(a/b*100,1) + '%' : '—';
+const median = a => {
+  if (!a.length) return null;
+  const s = [...a].sort((x,y)=>x-y), m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m-1]+s[m])/2;
+};
+const mean = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : null;
+const faixa = h => h <= 24 ? 0 : h <= 48 ? 1 : h <= 72 ? 2 : 3;
+const cleanEq = s => {
+  s = String(s ?? '').trim();
+  const m = s.match(/^="?(.*?)"?$/);
+  return m ? m[1].trim() : s;
+};
+const isDark = () => document.documentElement.getAttribute('data-theme') === 'dark';
+const themeColors = () => isDark() ? CORES_LIGHT : CORES;
+
+/* ============================================================
+   PARSER
+============================================================ */
+const Parser = {
+  parseDT(ds, ts){
+    ds = cleanEq(ds); ts = cleanEq(ts);
+    if (!ds || /^0{1,4}[\/\-.]0{1,2}[\/\-.]0{1,4}/.test(ds)) return { d:null, err:null };
+    let y, mo, d, h=0, mi=0, s=0, m;
+    if (m = ds.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})(?:[ T]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/)) {
+      d=+m[1]; mo=+m[2]; y=+m[3];
+    } else if (m = ds.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/)) {
+      y=+m[1]; mo=+m[2]; d=+m[3];
+    } else return { d:null, err:'data' };
+    if (m[4] != null) { h=+m[4]; mi=+m[5]; s=+(m[6]||0); }
+    else if (ts) {
+      const t = ts.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+      if (!t) return { d:null, err:'hora' };
+      h=+t[1]; mi=+t[2]; s=+(t[3]||0);
+    }
+    if (h>23 || mi>59 || s>59) return { d:null, err:'hora' };
+    const dt = new Date(y, mo-1, d, h, mi, s);
+    if (dt.getFullYear()!==y || dt.getMonth()!==mo-1 || dt.getDate()!==d) return { d:null, err:'data' };
+    return { d:dt, err:null };
+  },
+  normStatus(s){
+    const n = norm(s); if (!n) return '';
+    if (/cancel/.test(n)) return 'Cancelada';
+    if (/final|encerr|conclu|fechad|resolvid/.test(n)) return 'Finalizada';
+    if (/andamento|execu|deslocamento|agendad/.test(n)) return 'Em andamento';
+    if (/abert|aguard|pendent|novo/.test(n)) return 'Aberta';
+    return '?';
+  },
+  decode(buf){
+    let t = new TextDecoder('utf-8').decode(buf);
+    if (t.includes('\uFFFD')) t = new TextDecoder('windows-1252').decode(buf);
+    return t.replace(/^\uFEFF/,'');
+  }
+};
+
+/* ============================================================
+   TOASTS
+============================================================ */
+const Toast = {
+  show(type, title, msg, ttl=4200){
+    const el = document.createElement('div');
+    el.className = 'toast ' + type;
+    el.innerHTML = `<div class="t-title">${esc(title)}</div>${msg ? `<div class="t-msg">${esc(msg)}</div>` : ''}`;
+    $('toasts').appendChild(el);
+    setTimeout(() => { el.style.opacity = '0'; el.style.transform='translateX(30px)';
+      setTimeout(()=>el.remove(), 250); }, ttl);
+  },
+  ok(t,m){ this.show('ok',t,m); },
+  warn(t,m){ this.show('warn',t,m); },
+  err(t,m){ this.show('err',t,m); }
+};
+
+/* ============================================================
+   IMPORT CSV
+============================================================ */
+$('btnImport').onclick = () => $('file').click();
+$('file').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const text = Parser.decode(r.result);
+      const res = Papa.parse(text, {
+        header:true, skipEmptyLines:'greedy',
+        delimiter:'', delimitersToGuess:[';', ',', '\t', '|']
+      });
+      if (!res.meta.fields?.length || !res.data.length) {
+        Toast.err('CSV vazio', 'Não foi possível ler registros neste arquivo.');
+        return;
+      }
+      const newHeaders = res.meta.fields;
+      const same = State.headers.length && newHeaders.join('|') === State.headers.join('|');
+      State.headers = newHeaders;
+      State.raw = res.data;
+      State.fileName = f.name;
+      State.sep = res.meta.delimiter;
+      if (!same) State.map = autoMap(newHeaders);
+      resetFilters(true);
+      const missing = ['id','assunto','dAb'].filter(k => !State.map[k]);
+      if (missing.length) openMapDialog(); else build();
+      Toast.ok('CSV importado', `${res.data.length} registros · separador «${State.sep}»`);
+    } catch (err) {
+      console.error(err);
+      Toast.err('Erro ao ler CSV', err.message);
+    }
+  };
+  r.readAsArrayBuffer(f);
+  e.target.value = '';
+};
+
+function autoMap(headers){
+  const m = {};
+  FIELDS.forEach(f => {
+    const c = headers.find(h => f.re.test(norm(h)));
+    if (c) m[f.k] = c;
+  });
+  return m;
+}
+
+/* ============================================================
+   MAPEAMENTO
+============================================================ */
+function openMapDialog(){
+  $('mapForm').innerHTML = FIELDS.map(f => `
+    <label class="field" style="text-transform:none;letter-spacing:0">
+      <span>${esc(f.label)}</span>
+      <select data-k="${f.k}">
+        <option value="">— não usar —</option>
+        ${State.headers.map(h => `<option ${State.map[f.k]===h?'selected':''}>${esc(h)}</option>`).join('')}
+      </select>
+    </label>
+  `).join('');
+  $('mapDlg').showModal();
+}
+$('btnMap').onclick = openMapDialog;
+$('mapOk').onclick = () => {
+  const m = {};
+  $('mapForm').querySelectorAll('select').forEach(s => { if (s.value) m[s.dataset.k] = s.value; });
+  State.map = m;
+  $('mapDlg').close();
+  build();
+};
+
+/* ============================================================
+   BUILD
+============================================================ */
+function build(){
+  const now = new Date();
+  const get = (r,k) => State.map[k] ? String(r[State.map[k]] ?? '').trim() : '';
+
+  const cnt = {};
+  State.raw.forEach(r => {
+    const id = cleanEq(get(r,'id'));
+    if (id) cnt[id] = (cnt[id] || 0) + 1;
+  });
+
+  State.rows = State.raw.map((raw, i) => {
+    const iss = [];
+    const id      = cleanEq(get(raw,'id'));
+    const cliente = cleanEq(get(raw,'cliente'));
+    const assunto = get(raw,'assunto').replace(/\s+/g,' ').trim();
+    const colab   = cleanEq(get(raw,'colab'));
+    const slaRaw  = cleanEq(get(raw,'sla'));
+
+    const ab = Parser.parseDT(get(raw,'dAb'), get(raw,'hAb'));
+    const fe = Parser.parseDT(get(raw,'dFe'), get(raw,'hFe'));
+
+    let st = State.map.status ? Parser.normStatus(get(raw,'status')) : '';
+    if (!st) st = fe.d ? 'Finalizada' : (ab.d ? 'Aberta' : '?');
+
+    let slaPct = null;
+    if (slaRaw) {
+      const mm = slaRaw.match(/(-?\d+(?:[.,]\d+)?)/);
+      if (mm) slaPct = parseFloat(mm[1].replace(',','.'));
+    }
+
+    if (!id) iss.push('OS sem número');
+    if (!assunto) iss.push('OS sem assunto');
+    if (!ab.d && !ab.err) iss.push('OS sem abertura');
+    [ab, fe].forEach((x, j) => {
+      if (x.err === 'data') iss.push('Data inválida (' + (j?'fechamento':'abertura') + ')');
+      if (x.err === 'hora') iss.push('Hora inválida (' + (j?'fechamento':'abertura') + ')');
+    });
+    if (st === '?') iss.push('Status desconhecido');
+    if (id && cnt[id] > 1) iss.push('OS duplicada');
+
+    const open = st === 'Aberta' || st === 'Em andamento';
+    let h = null;
+    if (open) {
+      if (ab.d) h = (now - ab.d) / 36e5;
+    } else if (st === 'Finalizada' || st === 'Cancelada') {
+      if (!fe.d && !fe.err && st === 'Finalizada') iss.push('OS sem fechamento');
+      if (ab.d && fe.d) {
+        h = (fe.d - ab.d) / 36e5;
+        if (h < 0) { iss.push('Fechamento anterior à abertura'); h = null; }
+      }
+    }
+
+    const slaOk = slaPct == null ? null : slaPct >= 99.5;
+
+    return {
+      i, id, cliente,
+      assunto: assunto || '(sem assunto)',
+      colab: colab || '(não informado)',
+      slaPct, slaOk,
+      ab: ab.d, fe: fe.d, st, open, h,
+      fx: h == null ? null : faixa(h),
+      iss, raw,
+      ref: open ? ab.d : (fe.d || ab.d),
+      key: norm(id + ' ' + cliente + ' ' + assunto)
+    };
+  });
+
+  $('btnImport').textContent = '📂 Importar novo CSV';
+  $('app').classList.remove('hide');
+  $('empty').classList.add('hide');
+  ['btnMap','btnClear'].forEach(b => $(b).classList.remove('hide'));
+
+  const ok = State.rows.filter(r => !r.iss.length).length;
+  const ds = State.rows.map(r => r.ab).filter(Boolean).sort((a,b)=>a-b);
+  const cAss = {}; State.rows.forEach(r => cAss[r.assunto] = (cAss[r.assunto]||0)+1);
+
+  $('baseInfo').innerHTML = `
+    <b>${fmtN(State.rows.length)}</b> registros ·
+    <b>${Object.keys(cAss).length}</b> assuntos ·
+    ${State.headers.length} colunas ·
+    ${fmtN(ok)} sem inconsistências<br>
+    Aberturas de <b>${ds.length ? fmtDT(ds[0]) : '—'}</b> a <b>${ds.length ? fmtDT(ds[ds.length-1]) : '—'}</b> ·
+    Arquivo <b>${esc(State.fileName)}</b>
+  `;
+
+  const cur = $('fAssunto').value;
+  $('fAssunto').innerHTML = '<option value="">Todos</option>' +
+    Object.keys(cAss).sort((a,b)=>a.localeCompare(b,'pt'))
+      .map(a => `<option value="${esc(a)}">${esc(a)} (${cAss[a]})</option>`).join('');
+  $('fAssunto').value = cAss[cur] ? cur : '';
+
+  State.pieActiveFaixa = null;
+  refresh();
+  renderValidation();
+}
+
+/* ============================================================
+   FILTROS
+============================================================ */
+function resetFilters(keepAssunto){
+  ['fStatus','fFaixa','fPeriodo','fDe','fAte','fBusca','fDow'].forEach(id => $(id).value='');
+  $('fCanc').checked = false;
+  if (!keepAssunto) $('fAssunto').value = '';
+  $('lDe').classList.add('hide');
+  $('lAte').classList.add('hide');
+  State.pieActiveFaixa = null;
+  const hint = $('pieHint');
+  if (hint) { hint.classList.remove('active'); hint.textContent = 'Clique em uma fatia para filtrar'; }
+}
+function periodRange(){
+  const v = $('fPeriodo').value, n = new Date();
+  const t0 = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+  const day = 86400000;
+  if (v === 'hoje')   return [t0, new Date(+t0 + day)];
+  if (v === '7')      return [new Date(+t0 - 6*day), new Date(+t0 + day)];
+  if (v === '30')     return [new Date(+t0 - 29*day), new Date(+t0 + day)];
+  if (v === 'mes')    return [new Date(n.getFullYear(), n.getMonth(), 1), new Date(n.getFullYear(), n.getMonth()+1, 1)];
+  if (v === 'mesant') return [new Date(n.getFullYear(), n.getMonth()-1, 1), new Date(n.getFullYear(), n.getMonth(), 1)];
+  if (v === 'custom') {
+    const a = $('fDe').value, b = $('fAte').value;
+    return [a ? new Date(a + 'T00:00:00') : null,
+            b ? new Date(+new Date(b + 'T00:00:00') + day) : null];
+  }
+  return null;
+}
+function applyFilters(){
+  const a   = $('fAssunto').value;
+  const st  = $('fStatus').value;
+  const fx  = $('fFaixa').value;
+  const q   = norm($('fBusca').value);
+  const dw  = $('fDow').value;
+  const inc = $('fCanc').checked;
+  const pr  = periodRange();
+  const pie = State.pieActiveFaixa;
+
+  State.view = State.rows.filter(r => {
+    if (a && r.assunto !== a) return false;
+    if (st && r.st !== st) return false;
+    if (r.st === 'Cancelada' && !inc && st !== 'Cancelada') return false;
+    if (fx !== '' && r.fx !== +fx) return false;
+    if (pie != null && r.fx !== pie) return false;
+    if (q && !r.key.includes(q)) return false;
+    if (dw) {
+      if (!r.fe) return false;
+      const w = (r.fe.getDay() + 6) % 7;
+      if (dw === 'fds' ? w < 4 : w !== +dw) return false;
+    }
+    if (pr) {
+      if (!r.ref) return false;
+      if (pr[0] && r.ref < pr[0]) return false;
+      if (pr[1] && r.ref >= pr[1]) return false;
+    }
+    return true;
+  });
+}
+
+['fAssunto','fStatus','fFaixa','fPeriodo','fDe','fAte','fCanc','fDow'].forEach(id => {
+  $(id).onchange = () => {
+    const custom = $('fPeriodo').value === 'custom';
+    $('lDe').classList.toggle('hide', !custom);
+    $('lAte').classList.toggle('hide', !custom);
+    // se o usuário mexeu no filtro de faixa, limpa o filtro da pizza
+    if (id === 'fFaixa') {
+      State.pieActiveFaixa = null;
+      const h = $('pieHint');
+      if (h) { h.classList.remove('active'); h.textContent = 'Clique em uma fatia para filtrar'; }
+    }
+    State.page = 0;
+    refresh();
+  };
+});
+let buscaTimer;
+$('fBusca').oninput = () => {
+  clearTimeout(buscaTimer);
+  buscaTimer = setTimeout(() => { State.page = 0; refresh(); }, 250);
+};
+$('btnReset').onclick = () => { resetFilters(); State.page = 0; refresh(); };
+
+/* ============================================================
+   STATS
+============================================================ */
+function stats(rows){
+  const fin = rows.filter(r => r.st === 'Finalizada' && r.h != null);
+  const hs = fin.map(r => r.h);
+  const b = [0,0,0,0];
+  fin.forEach(r => b[r.fx]++);
+  const abertas = rows.filter(r => r.open && r.h != null);
+  const bo = [0,0,0,0];
+  abertas.forEach(r => bo[r.fx]++);
+  const porStatus = { 'Aberta':0, 'Em andamento':0, 'Finalizada':0, 'Cancelada':0 };
+  rows.forEach(r => { if (r.st in porStatus) porStatus[r.st]++; });
+  const slaOk = fin.filter(r => r.slaOk === true).length;
+  const slaKo = fin.filter(r => r.slaOk === false).length;
+  return {
+    total: rows.length, fin, nFin: fin.length, hs, b,
+    porStatus, abertasArr: abertas, bo,
+    avg: mean(hs), med: median(hs),
+    min: hs.length ? Math.min(...hs) : null,
+    max: hs.length ? Math.max(...hs) : null,
+    slaOk, slaKo
+  };
+}
+
+/* ============================================================
+   CARD + CONTADOR ANIMADO (item 6)
+============================================================ */
+const animCounters = new Map();
+
+function cardKpi(label, value, sub, color, opts){
+  // value pode ser número (animado) ou string (ex: "12h30min")
+  const isNum = typeof value === 'number' && isFinite(value);
+  const display = isNum ? fmtN(0) : value;
+  const animKey = 'kpi_' + Math.random().toString(36).slice(2, 8);
+
+  // Guarda o alvo para animar depois do insert
+  if (isNum) {
+    animCounters.set(animKey, value);
+  }
+
+  return `<div class="kpi ${color||''}" ${isNum ? `data-anim="${animKey}"` : ''}>
+    <div class="lbl">${label}</div>
+    <div class="val" ${isNum ? `data-target="${value}"` : ''}>${display}</div>
+    <div class="sub">${sub || '&nbsp;'}</div>
+  </div>`;
+}
+
+function animateNumbers(root){
+  // Anima todos os .val com data-target dentro de root
+  (root || document).querySelectorAll('.val[data-target]').forEach(el => {
+    const target = parseFloat(el.dataset.target);
+    if (isNaN(target)) return;
+    const dur = 900;
+    const start = performance.now();
+    const initial = 0;
+    const isFloat = !Number.isInteger(target);
+    function tick(now){
+      const t = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const v = initial + (target - initial) * eased;
+      el.textContent = isFloat ? fmtN(v, 2) : fmtN(Math.round(v));
+      if (t < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  });
+}
+
+/* ============================================================
+   REFRESH
+============================================================ */
+function refresh(){
+  applyFilters();
+  const s = stats(State.view), n = s.nFin;
+
+  $('cards1').innerHTML =
+    cardKpi('Total de OS', s.total, 'no filtro atual') +
+    cardKpi('Finalizadas', n, s.total ? pct(n, s.total) + ' do total' : '') +
+    cardKpi('Abertas', s.porStatus['Aberta'], `${fmtN(s.porStatus['Em andamento'])} em andamento`, 'c2') +
+    cardKpi('Até 24h', s.b[0], pct(s.b[0], n) + ' das finalizadas', 'c0') +
+    cardKpi('24–72h', s.b[1] + s.b[2], pct(s.b[1]+s.b[2], n) + ' das finalizadas', 'c1') +
+    cardKpi('Acima de 72h', s.b[3], pct(s.b[3], n) + ' das finalizadas', 'c3') +
+    cardKpi('Tempo médio', fmtH(s.avg), s.avg != null ? fmtN(s.avg, 2) + ' horas' : '') +
+    cardKpi('Tempo mediano', fmtH(s.med), s.med != null ? fmtN(s.med, 2) + ' horas' : '');
+
+  const slaTotal = s.slaOk + s.slaKo;
+  $('cards2').innerHTML =
+    cardKpi('Menor tempo', fmtH(s.min)) +
+    cardKpi('Maior tempo', fmtH(s.max)) +
+    cardKpi('Até 72h', (s.b[0]+s.b[1]+s.b[2]), pct(s.b[0]+s.b[1]+s.b[2], n), 'c0') +
+    cardKpi('Acima de 24h', (s.b[1]+s.b[2]+s.b[3]), pct(s.b[1]+s.b[2]+s.b[3], n)) +
+    cardKpi('Abertas até 24h', s.bo[0], 'em aberto agora') +
+    cardKpi('Abertas 24–72h', s.bo[1] + s.bo[2], 'em aberto agora') +
+    cardKpi('Abertas +72h', s.bo[3], 'em aberto agora', 'c3') +
+    (slaTotal
+      ? cardKpi('SLA cumprido', s.slaOk, pct(s.slaOk, slaTotal) + ` de ${fmtN(slaTotal)}`, s.slaOk/slaTotal >= .9 ? 'c0' : 'c2')
+      : cardKpi('Canceladas', s.porStatus['Cancelada'], 'coluna SLA não detectada'));
+
+  // Animação dos números
+  animateNumbers($('cards1'));
+  animateNumbers($('cards2'));
+
+  renderResumo(s);
+  renderCharts(s);
+  renderDow(s);
+  renderAssuntos();
+  renderTecnicos();
+  renderTable();
+
+  // Transição suave no swap de dados
+  ['resumo','tAss','tTec','tOS','tDow'].forEach(id => {
+    const el = $(id);
+    if (el) { el.classList.remove('view-swap'); void el.offsetWidth; el.classList.add('view-swap'); }
+  });
+}
+
+/* ============================================================
+   RESUMO
+============================================================ */
+function renderResumo(s){
+  if (!s.total) { $('resumo').innerHTML = '<p>Nenhuma OS no filtro atual.</p>'; return; }
+  const n = s.nFin;
+  const top = {};
+  [...s.fin, ...s.abertasArr].filter(r => r.fx === 3)
+    .forEach(r => top[r.assunto] = (top[r.assunto] || 0) + 1);
+  const top5 = Object.entries(top).sort((a,b)=>b[1]-a[1]).slice(0,5)
+    .map(([k,v]) => `${esc(k)} (${fmtN(v)})`).join('; ') || 'nenhum';
+
+  const slaFrase = (s.slaOk + s.slaKo) > 0
+    ? `<p>Cumprimento de SLA entre as finalizadas: <b>${pct(s.slaOk, s.slaOk + s.slaKo)}</b> (${fmtN(s.slaOk)} OK · ${fmtN(s.slaKo)} violadas).</p>`
+    : '';
+
+  $('resumo').innerHTML = `
+    <p>Das <b>${fmtN(s.total)}</b> OS analisadas, <b>${fmtN(n)}</b> estão finalizadas e
+       <b>${fmtN(s.porStatus['Aberta'] + s.porStatus['Em andamento'])}</b> seguem abertas/em andamento.</p>
+    <p><b>${fmtN(s.b[0])}</b> finalizadas em até 24 horas (${pct(s.b[0], n)}),
+       <b>${fmtN(s.b[1]+s.b[2])}</b> entre 24 e 72 horas (${pct(s.b[1]+s.b[2], n)}) e
+       <b>${fmtN(s.b[3])}</b> acima de 72 horas (${pct(s.b[3], n)}).</p>
+    <p>Tempo médio: <b>${fmtH(s.avg)}</b> · Mediano: <b>${fmtH(s.med)}</b> ·
+       Menor: <b>${fmtH(s.min)}</b> · Maior: <b>${fmtH(s.max)}</b>.</p>
+    ${slaFrase}
+    <p>OS abertas há mais de 72h: <b>${fmtN(s.bo[3])}</b>.</p>
+    <p>Assuntos com mais OS acima de 72h (finalizadas + abertas): ${top5}.</p>
+  `;
+}
+
+/* ============================================================
+   GRÁFICOS
+============================================================ */
+function mk(id, cfg){
+  if (State.charts[id]) State.charts[id].destroy();
+  State.charts[id] = new Chart($(id), cfg);
+}
+
+function groupBy(rows, keyFn){
+  const m = new Map();
+  rows.forEach(r => {
+    const k = keyFn(r);
+    if (!m.has(k)) m.set(k, { key:k, rows:[] });
+    m.get(k).rows.push(r);
+  });
+  return [...m.values()];
+}
+
+function renderCharts(s){
+  const n = s.nFin;
+  const cores = themeColors();
+  const inkColor = isDark() ? '#e6edf7' : '#0f172a';
+
+  /* --------- PIZZA (doughnut) CLICÁVEL — item 2 --------- */
+  // Aplica destaque visual se houver filtro de pizza ativo
+  const ativo = State.pieActiveFaixa;
+  const bg = cores.map((c, i) => {
+    if (ativo == null) return c;
+    return i === ativo ? c : c + '55'; // 55 = alpha reduzido
+  });
+  const border = cores.map((c, i) => (ativo === i ? c : 'transparent'));
+
+  mk('chDist', {
+    type:'doughnut',
+    data:{
+      labels: FAIXAS,
+      datasets:[{
+        data: s.b,
+        backgroundColor: bg,
+        borderColor: border,
+        borderWidth: 3,
+        hoverOffset: 14,
+        spacing: 2
+      }]
+    },
+    options:{
+      maintainAspectRatio:false,
+      cutout:'62%',
+      animation:{ animateRotate:true, animateScale:true, duration:900, easing:'easeOutQuart' },
+      plugins:{
+        legend:{
+          position:'bottom',
+          labels:{
+            color: inkColor,
+            usePointStyle: true,
+            pointStyle:'rectRounded',
+            padding: 14,
+            font:{ size: 12, weight:'600' },
+            generateLabels: chart => {
+              const ds = chart.data.datasets[0];
+              return chart.data.labels.map((label, i) => ({
+                text: `${label}  ·  ${fmtN(ds.data[i])} (${pct(ds.data[i], n)})`,
+                fillStyle: cores[i],
+                strokeStyle: 'transparent',
+                lineWidth: 0,
+                pointStyle: 'rectRounded',
+                hidden: false,
+                index: i
+              }));
+            }
+          }
+        },
+        tooltip:{
+          callbacks:{
+            label: c => `${c.label}: ${fmtN(c.raw)} OS · ${pct(c.raw, n)}`
+          }
+        }
+      },
+      onClick:(evt, elements) => {
+        if (!elements.length) {
+          // clique fora: limpa filtro da pizza
+          State.pieActiveFaixa = null;
+          const hint = $('pieHint');
+          hint.classList.remove('active');
+          hint.textContent = 'Clique em uma fatia para filtrar';
+          State.page = 0;
+          refresh();
+          return;
+        }
+        const idx = elements[0].index;
+        State.pieActiveFaixa = (State.pieActiveFaixa === idx) ? null : idx;
+        const hint = $('pieHint');
+        if (State.pieActiveFaixa == null) {
+          hint.classList.remove('active');
+          hint.textContent = 'Clique em uma fatia para filtrar';
+        } else {
+          hint.classList.add('active');
+          hint.textContent = `Filtrado por: ${FAIXAS[idx]} — clique novamente para remover`;
+        }
+        State.page = 0;
+        refresh();
+      },
+      onHover:(evt, elements) => {
+        evt.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+      }
+    }
+  });
+
+  /* --------- Barras: Tempo médio por assunto --------- */
+  const gAss = groupBy(s.fin, r => r.assunto).map(o => {
+    const hs = o.rows.map(r => r.h);
+    return { nome:o.key, avg:mean(hs), n:hs.length };
+  }).filter(o => o.avg != null).sort((a,b) => b.avg - a.avg).slice(0, 15);
+
+  mk('chAss', {
+    type:'bar',
+    data:{
+      labels: gAss.map(o => o.nome),
+      datasets:[{
+        data: gAss.map(o => +o.avg.toFixed(2)),
+        backgroundColor: ctx => {
+          const g = ctx.chart.ctx.createLinearGradient(0, 0, ctx.chart.width, 0);
+          g.addColorStop(0, '#0ea5a4');
+          g.addColorStop(1, '#0d4a6b');
+          return g;
+        },
+        borderRadius: 8,
+        maxBarThickness: 26
+      }]
+    },
+    options:{
+      indexAxis:'y',
+      maintainAspectRatio:false,
+      animation:{ duration:800, easing:'easeOutQuart' },
+      plugins:{
+        legend:{ display:false },
+        tooltip:{ callbacks:{ label: c => `${fmtH(c.raw)} · ${fmtN(gAss[c.dataIndex].n)} OS` } }
+      },
+      scales:{
+        x:{ beginAtZero:true, title:{ display:true, text:'horas', color: inkColor }, ticks:{ color: inkColor } },
+        y:{ ticks:{ color: inkColor, callback(v){
+          const l = this.getLabelForValue(v);
+          return l.length > 34 ? l.slice(0,33) + '…' : l;
+        } } }
+      }
+    }
+  });
+
+  renderEvo(s);
+}
+
+function weekKey(d){
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+  return x;
+}
+
+function renderEvo(s){
+  const gr = $('gran').value;
+  const inkColor = isDark() ? '#e6edf7' : '#0f172a';
+  const map = new Map();
+  s.fin.forEach(r => {
+    if (!r.fe) return;
+    const d = gr === 'w' ? weekKey(r.fe) : r.fe;
+    const k = gr === 'm'
+      ? `${d.getFullYear()}-${p2(d.getMonth()+1)}`
+      : `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;
+    if (!map.has(k)) map.set(k, []);
+    map.get(k).push(r.h);
+  });
+  const ks = [...map.keys()].sort();
+  const lab = k => {
+    const p = k.split('-');
+    return gr === 'm' ? `${p[1]}/${p[0]}` : `${p[2]}/${p[1]}/${p[0].slice(2)}`;
+  };
+
+  mk('chEvo', {
+    type:'line',
+    data:{
+      labels: ks.map(lab),
+      datasets:[{
+        label: 'Tempo médio (h)',
+        data: ks.map(k => +mean(map.get(k)).toFixed(2)),
+        borderColor: '#0ea5a4',
+        backgroundColor: ctx => {
+          const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, ctx.chart.height);
+          g.addColorStop(0, 'rgba(14,165,164,.35)');
+          g.addColorStop(1, 'rgba(14,165,164,0)');
+          return g;
+        },
+        fill: true, tension: .35,
+        pointRadius: ks.length > 60 ? 0 : 4,
+        pointBackgroundColor: '#0ea5a4',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2
+      }]
+    },
+    options:{
+      maintainAspectRatio:false,
+      animation:{ duration:800, easing:'easeOutQuart' },
+      plugins:{
+        tooltip:{ callbacks:{ label: c => `${fmtH(c.raw)} · ${fmtN(map.get(ks[c.dataIndex]).length)} OS` } }
+      },
+      scales:{
+        y:{ beginAtZero:true, title:{ display:true, text:'horas', color: inkColor }, ticks:{ color: inkColor } },
+        x:{ ticks:{ color: inkColor } }
+      }
+    }
+  });
+}
+$('gran').onchange = () => renderEvo(stats(State.view));
+
+/* ============================================================
+   DIA DA SEMANA
+============================================================ */
+function renderDow(s){
+  const base = $('dowBase').value;
+  const inkColor = isDark() ? '#e6edf7' : '#0f172a';
+  const cores = themeColors();
+  const g = DIAS.map(() => []);
+  s.fin.forEach(r => {
+    const d = r[base];
+    if (d) g[(d.getDay() + 6) % 7].push(r);
+  });
+  const agg = rs => {
+    const b = [0,0,0,0], hs = rs.map(r => r.h);
+    rs.forEach(r => b[r.fx]++);
+    return { n:rs.length, b, avg:mean(hs), med:median(hs) };
+  };
+  const a   = g.map(agg);
+  const fds = agg([4,5,6].flatMap(i => g[i]));
+  const util = agg([0,1,2,3].flatMap(i => g[i]));
+
+  mk('chDow', {
+    type:'bar',
+    data:{
+      labels: DIAS,
+      datasets: FAIXAS.map((f, i) => ({
+        label: f,
+        data: a.map(x => x.b[i]),
+        backgroundColor: cores[i],
+        borderRadius: 6,
+        maxBarThickness: 50
+      }))
+    },
+    options:{
+      maintainAspectRatio:false,
+      animation:{ duration:800, easing:'easeOutQuart' },
+      scales:{
+        x:{ stacked:true, ticks:{ color: inkColor } },
+        y:{ stacked:true, beginAtZero:true, ticks:{ precision:0, color: inkColor },
+             title:{ display:true, text:'OS finalizadas', color: inkColor } }
+      },
+      plugins:{
+        legend:{ labels:{ color: inkColor, usePointStyle:true, pointStyle:'rectRounded' } },
+        tooltip:{ callbacks:{ footer: items => {
+          const x = a[items[0].dataIndex];
+          return `Total ${fmtN(x.n)} · médio ${fmtH(x.avg)}`;
+        } } }
+      }
+    }
+  });
+
+  const row = (nome, x, style) => `
+    <tr style="${style||''}">
+      <td>${nome}</td>
+      <td class="n">${fmtN(x.n)}</td>
+      <td class="n">${fmtN(x.b[0])}</td>
+      <td class="n">${fmtN(x.b[1]+x.b[2])}</td>
+      <td class="n">${fmtN(x.b[3])}</td>
+      <td class="n">${pct(x.b[0], x.n)}</td>
+      <td class="n">${pct(x.b[3], x.n)}</td>
+      <td class="n">${fmtH(x.avg)}</td>
+      <td class="n">${fmtH(x.med)}</td>
+    </tr>`;
+
+  $('tDow').innerHTML = `
+    <thead><tr>
+      <th>Dia</th>
+      <th class="n">Finalizadas</th>
+      <th class="n">Até 24h</th>
+      <th class="n">24–72h</th>
+      <th class="n">+72h</th>
+      <th class="n">% até 24h</th>
+      <th class="n">% +72h</th>
+      <th class="n">Médio</th>
+      <th class="n">Mediano</th>
+    </tr></thead>
+    <tbody>
+      ${DIAS.map((d, i) => row(d, a[i], i >= 4 ? 'background:var(--c2-soft)' : '')).join('')}
+      ${row('Sexta a domingo', fds,  'border-top:2px solid var(--accent); font-weight:700')}
+      ${row('Segunda a quinta', util, 'font-weight:700')}
+    </tbody>`;
+
+  const dif = (fds.avg != null && util.avg != null) ? fds.avg - util.avg : null;
+  $('dowTxt').innerHTML = (fds.n && util.n)
+    ? `<p>${fmtN(fds.n)} OS finalizadas de sexta a domingo (${pct(fds.n, fds.n + util.n)} do total):
+         ${pct(fds.b[0], fds.n)} em até 24h · ${pct(fds.b[3], fds.n)} acima de 72h.
+       Segunda a quinta: ${pct(util.b[0], util.n)} em até 24h · ${pct(util.b[3], util.n)} acima de 72h.</p>
+       <p>Tempo médio: <b>${fmtH(fds.avg)}</b> (sexta a domingo) contra <b>${fmtH(util.avg)}</b> (segunda a quinta)
+          — diferença de <b>${fmtH(Math.abs(dif))}</b> ${dif >= 0 ? 'a mais' : 'a menos'} no fim de semana.</p>`
+    : '';
+}
+$('dowBase').onchange = () => renderDow(stats(State.view));
+
+/* ============================================================
+   TABELAS ASSUNTO / TÉCNICO
+============================================================ */
+function renderAssuntos(){
+  const g = groupBy(State.view, r => r.assunto).map(o => {
+    const tot = o.rows.length;
+    const b = [0,0,0,0];
+    const hs = [];
+    o.rows.forEach(r => { if (r.st === 'Finalizada' && r.h != null) { b[r.fx]++; hs.push(r.h); } });
+    return { nome:o.key, tot, b, avg:mean(hs), n:hs.length };
+  }).sort((a,b) => (b.avg ?? -1) - (a.avg ?? -1));
+
+  $('tAss').innerHTML = `
+    <thead><tr>
+      <th>Assunto</th>
+      <th class="n">Total OS</th>
+      <th class="n">Até 24h</th>
+      <th class="n">24–72h</th>
+      <th class="n">+72h</th>
+      <th class="n">% +72h</th>
+      <th class="n">Tempo médio</th>
+    </tr></thead>
+    <tbody>${g.map(o => `
+      <tr>
+        <td>${esc(o.nome)}</td>
+        <td class="n">${fmtN(o.tot)}</td>
+        <td class="n">${fmtN(o.b[0])}</td>
+        <td class="n">${fmtN(o.b[1]+o.b[2])}</td>
+        <td class="n">${fmtN(o.b[3])}</td>
+        <td class="n">${pct(o.b[3], o.n)}</td>
+        <td class="n">${fmtH(o.avg)}</td>
+      </tr>`).join('') || '<tr><td colspan="7" class="empty">Sem dados</td></tr>'}
+    </tbody>`;
+}
+
+function renderTecnicos(){
+  const g = groupBy(State.view, r => r.colab).map(o => {
+    const tot = o.rows.length;
+    const fin = o.rows.filter(r => r.st === 'Finalizada' && r.h != null);
+    const hs = fin.map(r => r.h);
+    const b = [0,0,0,0];
+    fin.forEach(r => b[r.fx]++);
+    return { nome:o.key, tot, n:fin.length, b, avg:mean(hs) };
+  }).sort((a,b) => (b.avg ?? -1) - (a.avg ?? -1));
+
+  $('tTec').innerHTML = `
+    <thead><tr>
+      <th>Colaborador/Técnico</th>
+      <th class="n">OS no filtro</th>
+      <th class="n">Finalizadas</th>
+      <th class="n">Até 24h</th>
+      <th class="n">24–72h</th>
+      <th class="n">+72h</th>
+      <th class="n">% +72h</th>
+      <th class="n">Tempo médio</th>
+    </tr></thead>
+    <tbody>${g.map(o => `
+      <tr>
+        <td>${esc(o.nome)}</td>
+        <td class="n">${fmtN(o.tot)}</td>
+        <td class="n">${fmtN(o.n)}</td>
+        <td class="n">${fmtN(o.b[0])}</td>
+        <td class="n">${fmtN(o.b[1]+o.b[2])}</td>
+        <td class="n">${fmtN(o.b[3])}</td>
+        <td class="n">${pct(o.b[3], o.n)}</td>
+        <td class="n">${fmtH(o.avg)}</td>
+      </tr>`).join('') || '<tr><td colspan="8" class="empty">Coluna Colaborador/Técnico não mapeada ou sem dados</td></tr>'}
+    </tbody>`;
+}
+
+/* ============================================================
+   TABELA DETALHADA
+============================================================ */
+const COLS = [
+  ['id','OS'], ['cliente','Cliente'], ['assunto','Assunto'],
+  ['ab','Abertura'], ['fe','Fechamento'], ['h','Tempo'],
+  ['fx','Classificação'], ['st','Status']
+];
+function sortView(){
+  const { k, dir } = State.sort;
+  State.view.sort((a,b) => {
+    let x = a[k], y = b[k];
+    if (x == null && y == null) return 0;
+    if (x == null) return 1;
+    if (y == null) return -1;
+    if (x instanceof Date) { x = +x; y = +y; }
+    if (typeof x === 'string') return dir * x.localeCompare(y, 'pt', { numeric:true });
+    return dir * (x - y);
+  });
+}
+function badge(r){
+  if (r.fx == null) return `<span class="badge bx">— sem tempo</span>`;
+  const prefixo = r.open ? 'Aberta — ' : '';
+  return `<span class="badge b${r.fx}">${SIMBOL[r.fx]} ${prefixo}${FAIXAS[r.fx]}</span>`;
+}
+function renderTable(){
+  sortView();
+  const sz = +$('psize').value;
+  State.pageSize = sz;
+  const pages = Math.max(1, Math.ceil(State.view.length / sz));
+  State.page = Math.min(State.page, pages - 1);
+  const rows = State.view.slice(State.page * sz, (State.page + 1) * sz);
+
+  $('tOS').innerHTML = `
+    <thead><tr>
+      ${COLS.map(([k,l]) => `<th data-k="${k}">${l}${State.sort.k === k ? (State.sort.dir > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('')}
+    </tr></thead>
+    <tbody>${rows.map(r => `
+      <tr class="clickable" data-i="${r.i}">
+        <td>${esc(r.id)}</td>
+        <td class="trunc">${esc(r.cliente)}</td>
+        <td class="trunc">${esc(r.assunto)}</td>
+        <td>${fmtDT(r.ab)}</td>
+        <td>${fmtDT(r.fe)}</td>
+        <td>${fmtH(r.h)}${r.open ? ' <span class="hint">(em aberto)</span>' : ''}</td>
+        <td>${badge(r)}</td>
+        <td>${esc(r.st || '—')}</td>
+      </tr>`).join('') || '<tr><td colspan="8" class="empty">Nenhuma OS encontrada</td></tr>'}
+    </tbody>`;
+
+  $('tInfo').textContent = `${fmtN(State.view.length)} OS no filtro atual`;
+  $('pinfo').textContent = `Página ${State.page + 1} de ${pages}`;
+}
+$('tOS').onclick = e => {
+  const th = e.target.closest('th');
+  if (th && th.dataset.k) {
+    const k = th.dataset.k;
+    State.sort = State.sort.k === k ? { k, dir: -State.sort.dir } : { k, dir: 1 };
+    State.page = 0;
+    renderTable();
+    return;
+  }
+  const tr = e.target.closest('tr.clickable');
+  if (tr) showOS(State.rows[+tr.dataset.i]);
+};
+$('prev').onclick = () => { State.page = Math.max(0, State.page - 1); renderTable(); };
+$('next').onclick = () => { State.page++; renderTable(); };
+$('psize').onchange = () => { State.page = 0; renderTable(); };
+
+/* ============================================================
+   DETALHE DA OS
+============================================================ */
+function showOS(r){
+  $('osTitle').textContent = 'OS ' + (r.id || '(sem número)');
+  const slaTxt = r.slaPct == null ? '—'
+    : `${fmtN(r.slaPct, 0)}% ${r.slaOk ? '✔ cumprido' : '✖ violado'}`;
+
+  $('osBody').innerHTML = `
+    <div class="os-big">
+      <div class="lbl">Tempo total de atendimento</div>
+      <div class="v">${fmtH(r.h)}</div>
+      <div class="sub">${r.h != null ? fmtN(r.h, 2) + ' horas' + (r.open ? ' (ainda em aberto)' : '') : ''}</div>
+    </div>
+    <div class="kv-grid">
+      <div class="k">Cliente</div>       <div>${esc(r.cliente) || '—'}</div>
+      <div class="k">Assunto</div>       <div>${esc(r.assunto)}</div>
+      <div class="k">Colaborador</div>   <div>${esc(r.colab)}</div>
+      <div class="k">Abertura</div>      <div>${fmtDT(r.ab)}</div>
+      <div class="k">Fechamento</div>    <div>${fmtDT(r.fe)}</div>
+      <div class="k">Classificação</div> <div>${badge(r)}</div>
+      <div class="k">Status</div>        <div>${esc(r.st || '—')}</div>
+      <div class="k">SLA (CSV)</div>     <div>${slaTxt}</div>
+      ${r.iss.length ? `<div class="k" style="color:var(--c3)">Inconsistências</div><div style="color:var(--c3)">${esc(r.iss.join('; '))}</div>` : ''}
+    </div>
+    <details>
+      <summary style="cursor:pointer;font-weight:600;margin-bottom:8px">Ver todos os campos do CSV</summary>
+      <div class="raw-fields">
+        ${Object.entries(r.raw).map(([k,v]) =>
+          `<div class="row"><div class="k">${esc(k)}</div><div>${esc(cleanEq(v)) || '—'}</div></div>`
+        ).join('')}
+      </div>
+    </details>`;
+  $('osDlg').showModal();
+}
+
+/* ============================================================
+   VALIDAÇÃO
+============================================================ */
+function renderValidation(){
+  const tipos = [
+    'OS sem número','OS sem assunto','OS sem abertura','OS sem fechamento',
+    'Data inválida','Hora inválida','Fechamento anterior à abertura',
+    'OS duplicada','Status desconhecido'
+  ];
+  const bad = State.rows.filter(r => r.iss.length);
+  $('vCards').innerHTML = tipos.map(t => {
+    const c = State.rows.filter(r => r.iss.some(i => i.startsWith(t))).length;
+    return `<div class="kpi ${c ? '' : 'c0'}" style="${c ? 'border-color:var(--c2)' : ''}">
+      <div class="lbl">${t}</div>
+      <div class="val">${fmtN(c)}</div>
+      <div class="sub">${c ? 'registros afetados' : 'nenhum problema'}</div>
+    </div>`;
+  }).join('');
+  animateNumbers($('vCards'));
+
+  $('tVal').innerHTML = `
+    <thead><tr>
+      <th>OS</th><th>Cliente</th><th>Assunto</th><th>Problemas</th>
+    </tr></thead>
+    <tbody>${bad.slice(0, 500).map(r => `
+      <tr class="clickable" data-i="${r.i}">
+        <td>${esc(r.id) || '(sem número)'}</td>
+        <td class="trunc">${esc(r.cliente)}</td>
+        <td class="trunc">${esc(r.assunto)}</td>
+        <td>${esc(r.iss.join('; '))}</td>
+      </tr>`).join('') || '<tr><td colspan="4" class="empty">Nenhuma inconsistência encontrada ✔</td></tr>'}
+    </tbody>`;
+
+  $('vNote').textContent = bad.length > 500
+    ? `Exibindo 500 de ${fmtN(bad.length)} registros com problemas. Nenhum registro foi excluído.`
+    : 'Nenhum registro foi excluído automaticamente.';
+}
+$('tVal').onclick = e => {
+  const tr = e.target.closest('tr.clickable');
+  if (tr) showOS(State.rows[+tr.dataset.i]);
+};
+
+/* ============================================================
+   EXPORTAR GRÁFICO COMO PNG (item 19)
+============================================================ */
+function exportChart(chartId, fileName){
+  const c = State.charts[chartId];
+  if (!c) { Toast.warn('Gráfico indisponível', 'Nada para exportar ainda.'); return; }
+  // Fundo transparente → desenha com fundo branco para ficar bom no PNG
+  const canvas = c.canvas;
+  const tmp = document.createElement('canvas');
+  tmp.width = canvas.width;
+  tmp.height = canvas.height;
+  const ctx = tmp.getContext('2d');
+  ctx.fillStyle = isDark() ? '#0b1220' : '#ffffff';
+  ctx.fillRect(0, 0, tmp.width, tmp.height);
+  ctx.drawImage(canvas, 0, 0);
+  const a = document.createElement('a');
+  a.href = tmp.toDataURL('image/png');
+  a.download = fileName + '_' + new Date().toISOString().slice(0,10) + '.png';
+  a.click();
+  Toast.ok('PNG exportado', fileName + '.png');
+}
+
+/* ============================================================
+   EXPORTAÇÃO DE DADOS
+============================================================ */
+$$('[data-exp]').forEach(b => b.onclick = () => exportar(b.dataset.exp));
+function exportar(tipo){
+  if (!State.view.length) { Toast.warn('Nada para exportar', 'Nenhum registro no filtro atual.'); return; }
+  const head = ['OS','Cliente','Assunto','Abertura','Fechamento','Tempo','Horas','Classificação','Status'];
+  const data = State.view.map(r => [
+    r.id, r.cliente, r.assunto,
+    fmtDT(r.ab), fmtDT(r.fe), fmtH(r.h),
+    r.h == null ? '' : +r.h.toFixed(2),
+    r.fx == null ? '' : (r.open ? 'Aberta — ' : '') + FAIXAS[r.fx],
+    r.st
+  ]);
+  const nome = 'os_analise_' + new Date().toISOString().slice(0,10);
+  const baixar = (blob, ext) => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = nome + '.' + ext;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+  if (tipo === 'csv') {
+    baixar(new Blob(['\uFEFF' + Papa.unparse([head, ...data], { delimiter:';' })],
+      { type:'text/csv;charset=utf-8' }), 'csv');
+  }
+  if (tipo === 'xlsx') {
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([head, ...data]), 'OS');
+    XLSX.writeFile(wb, nome + '.xlsx');
+  }
+  if (tipo === 'pdf') {
+    if (data.length > 3000 && !confirm(`O PDF terá ${fmtN(data.length)} linhas e pode demorar. Continuar?`)) return;
+    const doc = new jspdf.jsPDF({ orientation:'landscape' });
+    const s = stats(State.view);
+    doc.setFontSize(14);
+    doc.text('Análise de Tempo das Ordens de Serviço', 14, 14);
+    doc.setFontSize(9);
+    doc.text(
+      `${fmtN(s.total)} OS · finalizadas ${fmtN(s.nFin)} · até 24h ${fmtN(s.b[0])} · ` +
+      `24–72h ${fmtN(s.b[1]+s.b[2])} · +72h ${fmtN(s.b[3])} · ` +
+      `médio ${fmtH(s.avg)} · mediano ${fmtH(s.med)}`,
+      14, 21
+    );
+    const filtrosAtivos = [];
+    if ($('fAssunto').value) filtrosAtivos.push('Assunto: ' + $('fAssunto').value);
+    if ($('fStatus').value)  filtrosAtivos.push('Status: ' + $('fStatus').value);
+    if ($('fFaixa').value)   filtrosAtivos.push('Faixa: ' + FAIXAS[+$('fFaixa').value]);
+    if ($('fPeriodo').value) filtrosAtivos.push('Período: ' + $('fPeriodo').value);
+    if (State.pieActiveFaixa != null) filtrosAtivos.push('Fatia: ' + FAIXAS[State.pieActiveFaixa]);
+    if (filtrosAtivos.length) doc.text(filtrosAtivos.join(' · '), 14, 26);
+    doc.autoTable({
+      head: [head.filter((_, i) => i !== 6)],
+      body: data.map(r => r.filter((_, i) => i !== 6)),
+      startY: filtrosAtivos.length ? 30 : 26,
+      styles: { fontSize: 7 },
+      headStyles: { fillColor: [13, 74, 107] }
+    });
+    doc.save(nome + '.pdf');
+  }
+  Toast.ok('Exportação concluída', `${fmtN(State.view.length)} registros em ${tipo.toUpperCase()}.`);
+}
+
+/* ============================================================
+   TEMA
+============================================================ */
+$('btnTheme').onclick = () => {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  $('btnTheme').textContent = next === 'dark' ? '☀ Tema' : '🌙 Tema';
+  if (State.rows.length) refresh();
+};
+
+/* ============================================================
+   LIMPAR
+============================================================ */
+$('btnClear').onclick = () => {
+  if (!confirm('Limpar todos os dados importados e voltar ao estado inicial?')) return;
+  Object.values(State.charts).forEach(c => c.destroy());
+  State.charts = {};
+  Object.assign(State, { headers:[], raw:[], map:{}, rows:[], view:[], page:0, fileName:'', pieActiveFaixa:null });
+  resetFilters();
+  $('btnImport').textContent = '📂 Importar CSV';
+  $('app').classList.add('hide');
+  $('empty').classList.remove('hide');
+  ['btnMap','btnClear'].forEach(b => $(b).classList.add('hide'));
+  Toast.ok('Dados removidos', 'Sistema pronto para uma nova importação.');
+};
+
+/* ============================================================
+   RIPPLE em botões (item 10)
+============================================================ */
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.btn');
+  if (!btn || btn.disabled) return;
+  const rect = btn.getBoundingClientRect();
+  const ripple = document.createElement('span');
+  const size = Math.max(rect.width, rect.height);
+  ripple.className = 'ripple';
+  ripple.style.width = ripple.style.height = size + 'px';
+  ripple.style.left = (e.clientX - rect.left - size/2) + 'px';
+  ripple.style.top  = (e.clientY - rect.top  - size/2) + 'px';
+  btn.appendChild(ripple);
+  setTimeout(() => ripple.remove(), 650);
+});
+
+/* ============================================================
+   INICIALIZAÇÃO — tema escuro é padrão para o "wow" do mesh
+============================================================ */
+document.documentElement.setAttribute('data-theme','dark');
+$('btnTheme').textContent = '☀ Tema';
+</script>
+</body>
+</html>
