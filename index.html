@@ -530,6 +530,8 @@ dialog::backdrop{ background:rgba(15,23,42,.6); backdrop-filter:blur(4px) }
     <button class="btn btn-glass" id="btnImport">📂 Importar CSV</button>
     <button class="btn btn-glass hide" id="btnMap">🧭 Mapear</button>
     <button class="btn btn-glass hide" id="btnClear">🗑 Limpar</button>
+    <button class="btn btn-primary hide" id="btnRepPdf" title="Baixar relatório em PDF">📄 Relatório PDF</button>
+    <button class="btn btn-primary hide" id="btnRepDoc" title="Baixar relatório em Word">📝 Relatório Word</button>
   </div>
 </header>
 
@@ -1008,7 +1010,7 @@ function build(){
   $('btnImport').textContent = '📂 Importar novo CSV';
   $('app').classList.remove('hide');
   $('empty').classList.add('hide');
-  ['btnMap','btnClear'].forEach(b => $(b).classList.remove('hide'));
+  ['btnMap','btnClear','btnRepPdf','btnRepDoc'].forEach(b => $(b).classList.remove('hide'));
 
   const ok = State.rows.filter(r => !r.iss.length).length;
   const ds = State.rows.map(r => r.ab).filter(Boolean).sort((a,b)=>a-b);
@@ -1869,6 +1871,235 @@ function exportar(tipo){
 /* ============================================================
    TEMA
 ============================================================ */
+/* ============================================================
+   RELATÓRIO PARA APRESENTAÇÃO (PDF / WORD)
+============================================================ */
+const REP_CHARTS = [
+  ['chDist','Distribuição do tempo (finalizadas)'],
+  ['chAss','Tempo médio por assunto'],
+  ['chEvo','Evolução do tempo médio'],
+  ['chDow','Atendimento por dia da semana']
+];
+function filtrosTxt(){
+  const f = [];
+  const opt = id => { const s = $(id); return s.options[s.selectedIndex].text; };
+  if ($('fAssunto').value) f.push('Assunto: ' + $('fAssunto').value);
+  if ($('fStatus').value)  f.push('Status: ' + $('fStatus').value);
+  if ($('fFaixa').value)   f.push('Faixa: ' + FAIXAS[+$('fFaixa').value]);
+  if ($('fPeriodo').value) f.push('Período: ' + opt('fPeriodo'));
+  if ($('fDow').value)     f.push('Dia da semana: ' + opt('fDow'));
+  if (State.pieActiveFaixa != null) f.push('Fatia: ' + FAIXAS[State.pieActiveFaixa]);
+  if ($('fBusca').value)   f.push('Busca: ' + $('fBusca').value);
+  if ($('fCanc').checked)  f.push('Inclui canceladas');
+  return f.length ? f.join(' · ') : 'Nenhum (todos os registros)';
+}
+function repKpis(){
+  return [...$$('#cards1 .kpi, #cards2 .kpi')].map(k => {
+    const v = k.querySelector('.val');
+    let val = v.textContent;
+    if (v.dataset.target != null) {
+      const n = parseFloat(v.dataset.target);
+      val = fmtN(n, Number.isInteger(n) ? 0 : 2);
+    }
+    return {
+      l: k.querySelector('.lbl').textContent.trim(),
+      v: val,
+      s: k.querySelector('.sub').textContent.replace(/\u00a0/g,' ').trim()
+    };
+  });
+}
+function repTable(id){
+  const t = $(id);
+  const head = [...t.querySelectorAll('thead th')].map(x => x.textContent.replace(/[▲▼]/g,'').trim());
+  const body = [...t.querySelectorAll('tbody tr')].map(tr => [...tr.children].map(td => td.textContent.trim()));
+  return { head, body };
+}
+function repResumo(){
+  return [...$('resumo').querySelectorAll('p')].map(p => p.textContent.replace(/\s+/g,' ').trim());
+}
+function chartImg(id){
+  const c = State.charts[id]; if (!c) return null;
+  const cv = c.canvas, tmp = document.createElement('canvas');
+  tmp.width = cv.width; tmp.height = cv.height;
+  const x = tmp.getContext('2d');
+  x.fillStyle = isDark() ? '#0b1220' : '#ffffff';
+  x.fillRect(0, 0, tmp.width, tmp.height);
+  x.drawImage(cv, 0, 0);
+  return { url: tmp.toDataURL('image/png'), w: tmp.width, h: tmp.height };
+}
+
+function relatorioPDF(){
+  if (!State.view.length) { Toast.warn('Nada para exportar', 'Nenhum registro no filtro atual.'); return; }
+  try {
+    const doc = new jspdf.jsPDF({ unit:'mm', format:'a4' });
+    const W = 210, H = 297, M = 14, CW = W - 2*M;
+    let y = 0;
+    const need = h => { if (y + h > H - 16) { doc.addPage(); y = M + 4; } };
+    const title = t => {
+      need(14);
+      doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(13,74,107);
+      doc.text(t, M, y);
+      doc.setDrawColor(14,165,164); doc.setLineWidth(.6); doc.line(M, y + 1.8, M + CW, y + 1.8);
+      y += 8; doc.setTextColor(30,41,59);
+    };
+
+    doc.setFillColor(13,74,107); doc.rect(0, 0, W, 38, 'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(20);
+    doc.text('Análise de Ordens de Serviço', M, 18);
+    doc.setFont('helvetica','normal'); doc.setFontSize(10);
+    doc.text('Relatório gerado em ' + fmtDT(new Date()), M, 26);
+    doc.text('Arquivo: ' + State.fileName, M, 32);
+    doc.setTextColor(30,41,59);
+
+    y = 46;
+    doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.text('Filtros aplicados', M, y); y += 5;
+    doc.setFont('helvetica','normal');
+    const fl = doc.splitTextToSize(filtrosTxt(), CW);
+    doc.text(fl, M, y); y += fl.length * 4.5 + 6;
+
+    title('Indicadores');
+    const ks = repKpis(), bw = (CW - 9) / 4, bh = 21;
+    ks.forEach((k, i) => {
+      const col = i % 4;
+      if (col === 0) need(bh + 3);
+      const x = M + col * (bw + 3);
+      doc.setFillColor(241,245,249); doc.roundedRect(x, y, bw, bh, 2, 2, 'F');
+      doc.setFont('helvetica','bold'); doc.setFontSize(6.5); doc.setTextColor(100,116,139);
+      doc.text(k.l.toUpperCase(), x + 3, y + 5, { maxWidth: bw - 6 });
+      doc.setFontSize(13); doc.setTextColor(15,23,42);
+      doc.text(k.v, x + 3, y + 12.5, { maxWidth: bw - 6 });
+      doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(100,116,139);
+      doc.text(k.s, x + 3, y + 17.5, { maxWidth: bw - 6 });
+      if (col === 3 || i === ks.length - 1) y += bh + 3;
+    });
+
+    y += 3; title('Resumo da análise');
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(30,41,59);
+    repResumo().forEach(p => {
+      const ls = doc.splitTextToSize(p, CW);
+      need(ls.length * 4.6 + 2);
+      doc.text(ls, M, y); y += ls.length * 4.6 + 2;
+    });
+    y += 4;
+
+    REP_CHARTS.forEach(([id, nome]) => {
+      const im = chartImg(id); if (!im) return;
+      let w = CW, h = w * im.h / im.w;
+      if (h > 100) { h = 100; w = h * im.w / im.h; }
+      need(h + 14); title(nome);
+      doc.addImage(im.url, 'PNG', M + (CW - w) / 2, y, w, h);
+      y += h + 8;
+    });
+
+    [['tDow','Atendimento por dia da semana (tabela)'],
+     ['tAss','Análise por assunto'],
+     ['tTec','Análise por técnico / colaborador']].forEach(([id, nome]) => {
+      const t = repTable(id);
+      need(30); title(nome);
+      const cs = {};
+      t.head.forEach((_, i) => { if (i > 0) cs[i] = { halign:'right' }; });
+      doc.autoTable({
+        head: [t.head], body: t.body, startY: y,
+        margin: { left:M, right:M },
+        styles: { fontSize:7.5, cellPadding:1.6 },
+        headStyles: { fillColor:[13,74,107] },
+        alternateRowStyles: { fillColor:[244,247,250] },
+        columnStyles: cs
+      });
+      y = doc.lastAutoTable.finalY + 8;
+    });
+
+    const n = doc.getNumberOfPages();
+    for (let i = 1; i <= n; i++) {
+      doc.setPage(i); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(120,130,145);
+      doc.text('Análise de Ordens de Serviço', M, H - 8);
+      doc.text('Página ' + i + ' de ' + n, W - M, H - 8, { align:'right' });
+    }
+    doc.save('relatorio_os_' + new Date().toISOString().slice(0,10) + '.pdf');
+    Toast.ok('Relatório PDF gerado', 'Baixado com os filtros atuais.');
+  } catch (err) {
+    console.error(err);
+    Toast.err('Erro ao gerar PDF', err.message);
+  }
+}
+
+function relatorioWord(){
+  if (!State.view.length) { Toast.warn('Nada para exportar', 'Nenhum registro no filtro atual.'); return; }
+  try {
+    const imgs = [];
+    const chartsHtml = REP_CHARTS.map(([id, nome]) => {
+      const im = chartImg(id); if (!im) return '';
+      imgs.push(im.url.split(',')[1]);
+      let w = 620, h = Math.round(w * im.h / im.w);
+      if (h > 400) { h = 400; w = Math.round(h * im.w / im.h); }
+      return `<h2>${esc(nome)}</h2><p align="center"><img src="file:///C:/rel/img${imgs.length}.png" width="${w}" height="${h}"></p>`;
+    }).join('');
+
+    const tbl = id => {
+      const t = repTable(id);
+      return `<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;border-color:#cbd5e1;font-size:9pt;width:100%">
+        <tr>${t.head.map(h => `<th align="left" style="background:#0d4a6b;color:#ffffff">${esc(h)}</th>`).join('')}</tr>
+        ${t.body.map(r => `<tr>${r.map((c, i) => `<td${i ? ' align="right"' : ''}>${esc(c)}</td>`).join('')}</tr>`).join('')}
+      </table>`;
+    };
+
+    const ks = repKpis();
+    let kh = '<table cellspacing="6" style="width:100%">';
+    ks.forEach((k, i) => {
+      if (i % 4 === 0) kh += '<tr>';
+      kh += `<td width="25%" style="background:#eef2f7;padding:8px">
+        <div style="font-size:7pt;color:#64748b"><b>${esc(k.l.toUpperCase())}</b></div>
+        <div style="font-size:15pt;color:#0f172a"><b>${esc(k.v)}</b></div>
+        <div style="font-size:7pt;color:#64748b">${esc(k.s)}</div></td>`;
+      if (i % 4 === 3 || i === ks.length - 1) kh += '</tr>';
+    });
+    kh += '</table>';
+
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>Análise de Ordens de Serviço</title>
+<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->
+<style>
+@page{size:21cm 29.7cm;margin:2cm}
+body{font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#1e293b}
+h1{color:#0d4a6b;font-size:22pt;margin:0}
+h2{color:#0d4a6b;font-size:14pt;border-bottom:2px solid #0ea5a4;padding-bottom:2pt;margin-top:18pt}
+p{margin:6pt 0;line-height:1.4}
+</style></head><body>
+<h1>Análise de Ordens de Serviço</h1>
+<p style="color:#64748b">Relatório gerado em ${esc(fmtDT(new Date()))} · Arquivo: ${esc(State.fileName)}</p>
+<p><b>Filtros aplicados:</b> ${esc(filtrosTxt())}</p>
+<h2>Indicadores</h2>${kh}
+<h2>Resumo da análise</h2>${repResumo().map(p => `<p>${esc(p)}</p>`).join('')}
+${chartsHtml}
+<br clear="all" style="page-break-before:always">
+<h2>Atendimento por dia da semana (tabela)</h2>${tbl('tDow')}
+<h2>Análise por assunto</h2>${tbl('tAss')}
+<h2>Análise por técnico / colaborador</h2>${tbl('tTec')}
+</body></html>`;
+
+    const b64 = s => btoa(unescape(encodeURIComponent(s))).replace(/(.{76})/g, '$1\r\n');
+    const B = '----=_NextPart_OSREL';
+    let mh = `MIME-Version: 1.0\r\nContent-Type: multipart/related; boundary="${B}"; type="text/html"\r\n\r\n` +
+      `--${B}\r\nContent-Type: text/html; charset="utf-8"\r\nContent-Transfer-Encoding: base64\r\nContent-Location: file:///C:/rel/rel.htm\r\n\r\n${b64(html)}\r\n`;
+    imgs.forEach((d, i) => {
+      mh += `--${B}\r\nContent-Location: file:///C:/rel/img${i + 1}.png\r\nContent-Transfer-Encoding: base64\r\nContent-Type: image/png\r\n\r\n${d.replace(/(.{76})/g, '$1\r\n')}\r\n`;
+    });
+    mh += `--${B}--`;
+
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([mh], { type:'application/msword' }));
+    a.download = 'relatorio_os_' + new Date().toISOString().slice(0,10) + '.doc';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    Toast.ok('Relatório Word gerado', 'Abra o arquivo .doc no Word.');
+  } catch (err) {
+    console.error(err);
+    Toast.err('Erro ao gerar Word', err.message);
+  }
+}
+$('btnRepPdf').onclick = relatorioPDF;
+$('btnRepDoc').onclick = relatorioWord;
+
 $('btnTheme').onclick = () => {
   const cur = document.documentElement.getAttribute('data-theme');
   const next = cur === 'dark' ? 'light' : 'dark';
@@ -1889,7 +2120,7 @@ $('btnClear').onclick = () => {
   $('btnImport').textContent = '📂 Importar CSV';
   $('app').classList.add('hide');
   $('empty').classList.remove('hide');
-  ['btnMap','btnClear'].forEach(b => $(b).classList.add('hide'));
+  ['btnMap','btnClear','btnRepPdf','btnRepDoc'].forEach(b => $(b).classList.add('hide'));
   Toast.ok('Dados removidos', 'Sistema pronto para uma nova importação.');
 };
 
