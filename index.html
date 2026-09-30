@@ -9,6 +9,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js"></script>
 <style>
 /* ============================================================
    TOKENS — MODO CLARO
@@ -69,9 +70,6 @@ body{
   -webkit-font-smoothing:antialiased;
   overflow-x:hidden;
 }
-/* ============================================================
-   MESH GRADIENT ANIMADO (item 3)
-============================================================ */
 body::before{
   content:''; position:fixed; inset:-20%; z-index:-1; pointer-events:none;
   background:
@@ -115,7 +113,6 @@ body::after{
   padding:14px 22px;
   display:flex; flex-wrap:wrap; gap:12px;
   align-items:center; justify-content:space-between;
-  /* item 1 — glass */
   background:var(--glass-2);
   backdrop-filter: blur(18px) saturate(160%);
   -webkit-backdrop-filter: blur(18px) saturate(160%);
@@ -133,7 +130,7 @@ main{max-width:1500px; margin:0 auto; padding:20px}
 @media(max-width:700px){ main{padding:12px} .app-header{padding:12px 14px} }
 
 /* ============================================================
-   PAINÉIS COM GLASS (item 1)
+   PAINÉIS COM GLASS
 ============================================================ */
 .panel{
   position:relative;
@@ -188,7 +185,6 @@ main{max-width:1500px; margin:0 auto; padding:20px}
 .btn-danger:hover{ background:var(--c3-soft) }
 .btn-icon{padding:8px; border-radius:50%}
 
-/* Ripple (item 10 — micro interação) */
 .btn .ripple{
   position:absolute; border-radius:50%; transform:scale(0);
   background:rgba(255,255,255,.45); pointer-events:none;
@@ -219,9 +215,6 @@ input[type=checkbox]{width:16px; height:16px; accent-color:var(--accent); cursor
 input[type=file]{display:none}
 option{background:var(--page-bg-1); color:var(--ink)}
 
-/* ============================================================
-   FILTROS
-============================================================ */
 .filters-grid{
   display:grid; gap:12px;
   grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
@@ -229,9 +222,6 @@ option{background:var(--page-bg-1); color:var(--ink)}
 }
 .filters-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:12px; flex-wrap:wrap}
 
-/* ============================================================
-   KPIs COM CONTADOR ANIMADO (item 6)
-============================================================ */
 .kpi-grid{
   display:grid; gap:12px;
   grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
@@ -274,9 +264,6 @@ option{background:var(--page-bg-1); color:var(--ink)}
 .kpi .sub{font-size:12px; color:var(--mut)}
 @keyframes kpiIn{ from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:none} }
 
-/* ============================================================
-   GRÁFICOS — item 2 (pizza clicável) e item 19 (PNG)
-============================================================ */
 .charts-grid{
   display:grid; gap:16px;
   grid-template-columns:repeat(auto-fit, minmax(360px, 1fr));
@@ -293,7 +280,6 @@ option{background:var(--page-bg-1); color:var(--ink)}
 .chart-box.pie{height:340px}
 @media(max-width:600px){ .chart-box{height:280px} .chart-box.tall{height:360px} .chart-box.pie{height:300px} }
 
-/* Pizza clicável (item 2) */
 .pie-wrap{ position:relative; cursor:pointer }
 .pie-wrap.clickable:hover{ transform: scale(1.008) }
 .pie-hint{
@@ -302,9 +288,6 @@ option{background:var(--page-bg-1); color:var(--ink)}
 }
 .pie-hint.active{ color:var(--accent); font-weight:700 }
 
-/* ============================================================
-   TABELAS
-============================================================ */
 .table-wrap{
   overflow:auto; max-height:600px;
   border:1px solid var(--glass-border); border-radius:var(--radius-sm);
@@ -333,9 +316,6 @@ tbody tr.clickable:hover{ background:color-mix(in srgb, var(--accent) 10%, trans
 td.n, th.n{text-align:right; font-variant-numeric:tabular-nums}
 td.trunc, th.trunc{max-width:260px; overflow:hidden; text-overflow:ellipsis}
 
-/* ============================================================
-   BADGES
-============================================================ */
 .badge{
   display:inline-flex; align-items:center; gap:4px;
   padding:3px 9px; border-radius:999px;
@@ -349,9 +329,6 @@ td.trunc, th.trunc{max-width:260px; overflow:hidden; text-overflow:ellipsis}
 .b3{background:var(--c3-soft); color:var(--c3); border-color:color-mix(in srgb, var(--c3) 30%, transparent)}
 .bx{background:var(--line-soft); color:var(--mut)}
 
-/* ============================================================
-   TOASTS
-============================================================ */
 #toasts{
   position:fixed; top:78px; right:18px; z-index:100;
   display:flex; flex-direction:column; gap:8px;
@@ -376,9 +353,6 @@ td.trunc, th.trunc{max-width:260px; overflow:hidden; text-overflow:ellipsis}
 .toast .t-msg{color:var(--mut); font-size:12.5px}
 @keyframes slideIn{from{transform:translateX(30px); opacity:0} to{transform:none; opacity:1}}
 
-/* ============================================================
-   EMPTY STATE
-============================================================ */
 .empty{
   text-align:center; padding:80px 20px; color:var(--mut);
   background:var(--glass);
@@ -389,9 +363,6 @@ td.trunc, th.trunc{max-width:260px; overflow:hidden; text-overflow:ellipsis}
 .empty h3{margin:0 0 8px; color:var(--ink); font-size:18px}
 .empty p{margin:0 0 20px; font-size:13px}
 
-/* ============================================================
-   DIALOGS
-============================================================ */
 dialog{
   border:0; padding:0; border-radius:20px;
   width:min(760px, 94vw); max-height:90vh;
@@ -418,9 +389,6 @@ dialog::backdrop{ background:rgba(15,23,42,.6); backdrop-filter:blur(4px) }
 .dlg-head .close:hover{ background:rgba(255,255,255,.3) }
 .dlg-body{padding:20px; max-height:calc(90vh - 60px); overflow:auto}
 
-/* ============================================================
-   DETALHE DA OS
-============================================================ */
 .os-big{
   text-align:center; padding:24px;
   background:linear-gradient(135deg,
@@ -450,17 +418,11 @@ dialog::backdrop{ background:rgba(15,23,42,.6); backdrop-filter:blur(4px) }
 .raw-fields .row{display:grid; grid-template-columns:180px 1fr; gap:10px; padding:6px 0; border-bottom:1px solid var(--line-soft)}
 .raw-fields .row:last-child{border-bottom:0}
 
-/* ============================================================
-   MAPEAMENTO
-============================================================ */
 .map-grid{
   display:grid; gap:12px;
   grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));
 }
 
-/* ============================================================
-   UTILITÁRIOS
-============================================================ */
 .hide{display:none !important}
 .row{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
 .row.between{justify-content:space-between}
@@ -468,18 +430,12 @@ dialog::backdrop{ background:rgba(15,23,42,.6); backdrop-filter:blur(4px) }
 .section-sum p{margin:8px 0; line-height:1.65}
 .section-sum b{color:var(--ink); font-weight:700}
 
-/* ============================================================
-   PAGINAÇÃO
-============================================================ */
 .pager{
   display:flex; gap:8px; align-items:center;
   justify-content:flex-end; flex-wrap:wrap; margin-top:12px;
 }
 .pager .info{color:var(--mut); font-size:12.5px; margin:0 6px; font-variant-numeric:tabular-nums}
 
-/* ============================================================
-   TRANSIÇÕES DE ENTRADA (item 10)
-============================================================ */
 .reveal{
   animation: reveal .5s cubic-bezier(.2,.9,.2,1) backwards;
 }
@@ -493,9 +449,6 @@ dialog::backdrop{ background:rgba(15,23,42,.6); backdrop-filter:blur(4px) }
   to{opacity:1; transform:none}
 }
 
-/* ============================================================
-   SCROLLBAR
-============================================================ */
 ::-webkit-scrollbar{width:10px; height:10px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:color-mix(in srgb, var(--accent) 40%, var(--mut)); border-radius:6px}
@@ -516,6 +469,7 @@ dialog::backdrop{ background:rgba(15,23,42,.6); backdrop-filter:blur(4px) }
     <button class="btn btn-glass" id="btnTheme" title="Alternar tema">☀ Tema</button>
     <button class="btn btn-glass" id="btnImport">📂 Importar CSV</button>
     <button class="btn btn-glass hide" id="btnMap">🧭 Mapear</button>
+    <button class="btn btn-glass hide" id="btnApresentacao" title="Gerar apresentação PPTX">📊 Apresentação</button>
     <button class="btn btn-glass hide" id="btnClear">🗑 Limpar</button>
   </div>
 </header>
@@ -603,7 +557,6 @@ dialog::backdrop{ background:rgba(15,23,42,.6); backdrop-filter:blur(4px) }
       <div id="resumo" class="section-sum"></div>
     </section>
 
-    <!-- GRÁFICOS -->
     <section class="panel reveal" style="animation-delay:.2s">
       <div class="charts-grid">
         <div>
@@ -729,6 +682,44 @@ dialog::backdrop{ background:rgba(15,23,42,.6); backdrop-filter:blur(4px) }
     <button class="close" onclick="document.getElementById('osDlg').close()">✕</button>
   </div>
   <div class="dlg-body" id="osBody"></div>
+</dialog>
+
+<!-- DIALOG: apresentação PPTX -->
+<dialog id="pptDlg">
+  <div class="dlg-head">
+    <b>Gerar apresentação (.pptx)</b>
+    <button class="close" onclick="document.getElementById('pptDlg').close()">✕</button>
+  </div>
+  <div class="dlg-body">
+    <p class="hint" style="margin-top:0">
+      Gera uma capa, um slide por mês (com KPIs, resumo e tabela por dia da semana) para os dois
+      assuntos escolhidos, e um slide final com a evolução do tempo médio.
+    </p>
+    <div class="map-grid">
+      <label class="field" style="text-transform:none;letter-spacing:0">
+        <span>Título do relatório</span>
+        <input id="pptTitulo" value="Relatório de Ordens de Serviço">
+      </label>
+      <label class="field" style="text-transform:none;letter-spacing:0">
+        <span>Modo</span>
+        <select id="pptModo">
+          <option value="mensal" selected>Por mês (recomendado)</option>
+          <option value="consolidado">Consolidado (slide único)</option>
+        </select>
+      </label>
+      <label class="field" style="text-transform:none;letter-spacing:0">
+        <span>Assunto A (coluna esquerda)</span>
+        <select id="pptAssA"></select>
+      </label>
+      <label class="field" style="text-transform:none;letter-spacing:0">
+        <span>Assunto B (coluna direita)</span>
+        <select id="pptAssB"></select>
+      </label>
+    </div>
+    <div class="row" style="margin-top:14px; justify-content:flex-end">
+      <button class="btn btn-primary" id="pptOk">📊 Gerar PPTX</button>
+    </div>
+  </div>
 </dialog>
 
 <script>
@@ -995,7 +986,7 @@ function build(){
   $('btnImport').textContent = '📂 Importar novo CSV';
   $('app').classList.remove('hide');
   $('empty').classList.add('hide');
-  ['btnMap','btnClear'].forEach(b => $(b).classList.remove('hide'));
+  ['btnMap','btnClear','btnApresentacao'].forEach(b => $(b).classList.remove('hide'));
 
   const ok = State.rows.filter(r => !r.iss.length).length;
   const ds = State.rows.map(r => r.ab).filter(Boolean).sort((a,b)=>a-b);
@@ -1086,7 +1077,6 @@ function applyFilters(){
     const custom = $('fPeriodo').value === 'custom';
     $('lDe').classList.toggle('hide', !custom);
     $('lAte').classList.toggle('hide', !custom);
-    // se o usuário mexeu no filtro de faixa, limpa o filtro da pizza
     if (id === 'fFaixa') {
       State.pieActiveFaixa = null;
       const h = $('pieHint');
@@ -1129,21 +1119,15 @@ function stats(rows){
 }
 
 /* ============================================================
-   CARD + CONTADOR ANIMADO (item 6)
+   CARD + CONTADOR ANIMADO
 ============================================================ */
 const animCounters = new Map();
 
 function cardKpi(label, value, sub, color, opts){
-  // value pode ser número (animado) ou string (ex: "12h30min")
   const isNum = typeof value === 'number' && isFinite(value);
   const display = isNum ? fmtN(0) : value;
   const animKey = 'kpi_' + Math.random().toString(36).slice(2, 8);
-
-  // Guarda o alvo para animar depois do insert
-  if (isNum) {
-    animCounters.set(animKey, value);
-  }
-
+  if (isNum) animCounters.set(animKey, value);
   return `<div class="kpi ${color||''}" ${isNum ? `data-anim="${animKey}"` : ''}>
     <div class="lbl">${label}</div>
     <div class="val" ${isNum ? `data-target="${value}"` : ''}>${display}</div>
@@ -1152,7 +1136,6 @@ function cardKpi(label, value, sub, color, opts){
 }
 
 function animateNumbers(root){
-  // Anima todos os .val com data-target dentro de root
   (root || document).querySelectorAll('.val[data-target]').forEach(el => {
     const target = parseFloat(el.dataset.target);
     if (isNaN(target)) return;
@@ -1201,7 +1184,6 @@ function refresh(){
       ? cardKpi('SLA cumprido', s.slaOk, pct(s.slaOk, slaTotal) + ` de ${fmtN(slaTotal)}`, s.slaOk/slaTotal >= .9 ? 'c0' : 'c2')
       : cardKpi('Canceladas', s.porStatus['Cancelada'], 'coluna SLA não detectada'));
 
-  // Animação dos números
   animateNumbers($('cards1'));
   animateNumbers($('cards2'));
 
@@ -1212,7 +1194,6 @@ function refresh(){
   renderTecnicos();
   renderTable();
 
-  // Transição suave no swap de dados
   ['resumo','tAss','tTec','tOS','tDow'].forEach(id => {
     const el = $(id);
     if (el) { el.classList.remove('view-swap'); void el.offsetWidth; el.classList.add('view-swap'); }
@@ -1272,12 +1253,10 @@ function renderCharts(s){
   const cores = themeColors();
   const inkColor = isDark() ? '#e6edf7' : '#0f172a';
 
-  /* --------- PIZZA (doughnut) CLICÁVEL — item 2 --------- */
-  // Aplica destaque visual se houver filtro de pizza ativo
   const ativo = State.pieActiveFaixa;
   const bg = cores.map((c, i) => {
     if (ativo == null) return c;
-    return i === ativo ? c : c + '55'; // 55 = alpha reduzido
+    return i === ativo ? c : c + '55';
   });
   const border = cores.map((c, i) => (ativo === i ? c : 'transparent'));
 
@@ -1329,7 +1308,6 @@ function renderCharts(s){
       },
       onClick:(evt, elements) => {
         if (!elements.length) {
-          // clique fora: limpa filtro da pizza
           State.pieActiveFaixa = null;
           const hint = $('pieHint');
           hint.classList.remove('active');
@@ -1357,7 +1335,6 @@ function renderCharts(s){
     }
   });
 
-  /* --------- Barras: Tempo médio por assunto --------- */
   const gAss = groupBy(s.fin, r => r.assunto).map(o => {
     const hs = o.rows.map(r => r.h);
     return { nome:o.key, avg:mean(hs), n:hs.length };
@@ -1772,12 +1749,11 @@ $('tVal').onclick = e => {
 };
 
 /* ============================================================
-   EXPORTAR GRÁFICO COMO PNG (item 19)
+   EXPORTAR GRÁFICO COMO PNG
 ============================================================ */
 function exportChart(chartId, fileName){
   const c = State.charts[chartId];
   if (!c) { Toast.warn('Gráfico indisponível', 'Nada para exportar ainda.'); return; }
-  // Fundo transparente → desenha com fundo branco para ficar bom no PNG
   const canvas = c.canvas;
   const tmp = document.createElement('canvas');
   tmp.width = canvas.width;
@@ -1857,6 +1833,313 @@ function exportar(tipo){
 }
 
 /* ============================================================
+   APRESENTAÇÃO PPTX
+============================================================ */
+const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                  'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+const PPT_COR = {
+  bg:'0B1220', card:'141F3A', cardLine:'2A3A5C',
+  bar:'E11D48', accent:'22D3EE', brand:'38BDF8',
+  ink:'E6EDF7', mut:'8895AB',
+  c0:'4ADE80', c1:'60A5FA', c2:'FBBF24', c3:'F87171'
+};
+
+function kpiStatsPPT(rows){
+  const fin = rows.filter(r => r.st === 'Finalizada' && r.h != null);
+  const hs  = fin.map(r => r.h);
+  const b   = [0,0,0,0];
+  fin.forEach(r => b[r.fx]++);
+  const porStatus = { 'Aberta':0,'Em andamento':0,'Finalizada':0,'Cancelada':0 };
+  rows.forEach(r => { if (r.st in porStatus) porStatus[r.st]++; });
+  const slaOk = fin.filter(r => r.slaOk === true).length;
+  const slaKo = fin.filter(r => r.slaOk === false).length;
+  return {
+    total: rows.length, nFin: fin.length, hs, b, porStatus,
+    avg: mean(hs), med: median(hs),
+    min: hs.length ? Math.min(...hs) : null,
+    max: hs.length ? Math.max(...hs) : null,
+    slaOk, slaKo
+  };
+}
+
+function abrirDialogApresentacao(){
+  if (!State.rows.length){ Toast.warn('Sem dados','Importe um CSV primeiro.'); return; }
+  const assuntos = [...new Set(State.rows.map(r => r.assunto))].sort((a,b)=>a.localeCompare(b,'pt'));
+  $('pptAssA').innerHTML = '<option value="">Todos os assuntos</option>' +
+    assuntos.map(a => `<option>${esc(a)}</option>`).join('');
+  $('pptAssB').innerHTML = '<option value="">— nenhum —</option>' +
+    assuntos.map(a => `<option>${esc(a)}</option>`).join('');
+  const cAss = {};
+  State.rows.forEach(r => cAss[r.assunto] = (cAss[r.assunto]||0)+1);
+  const top = Object.entries(cAss).sort((a,b)=>b[1]-a[1]);
+  if (top[0]) $('pptAssA').value = top[0][0];
+  if (top[1]) $('pptAssB').value = top[1][0];
+  $('pptDlg').showModal();
+}
+$('btnApresentacao').onclick = abrirDialogApresentacao;
+
+$('pptOk').onclick = async () => {
+  const btn = $('pptOk'); btn.disabled = true;
+  try {
+    await gerarPPTX();
+    $('pptDlg').close();
+  } catch(e){
+    console.error(e);
+    Toast.err('Erro ao gerar PPTX', e.message);
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+async function gerarPPTX(){
+  Toast.ok('Gerando apresentação', 'Montando slides... aguarde.');
+  await new Promise(r => setTimeout(r, 50));
+
+  const pptx = new PptxGenJS();
+  pptx.layout = 'LAYOUT_WIDE';
+  pptx.author = 'Análise de OS';
+  pptx.title  = $('pptTitulo').value || 'Relatório de OS';
+
+  const titulo = ($('pptTitulo').value || 'Relatório de Ordens de Serviço').trim();
+  const modo   = $('pptModo').value;
+  const assA   = $('pptAssA').value;
+  const assB   = $('pptAssB').value;
+
+  // ---------- SLIDE DE CAPA ----------
+  const capa = pptx.addSlide();
+  capa.background = { color: PPT_COR.bg };
+  capa.addShape(pptx.ShapeType.rect, { x:0, y:0, w:'100%', h:0.35, fill:{color:PPT_COR.bar} });
+  capa.addText(titulo, { x:0.5, y:2.5, w:12.33, h:1.2,
+    fontSize:40, bold:true, color:'FFFFFF', align:'center' });
+  capa.addText('Análise de tempo de atendimento · Ordens de Serviço',
+    { x:0.5, y:3.7, w:12.33, h:0.5, fontSize:16, color:PPT_COR.accent, align:'center' });
+  capa.addText(new Date().toLocaleDateString('pt-BR',
+    { day:'2-digit', month:'long', year:'numeric' }),
+    { x:0.5, y:6.7, w:12.33, h:0.4, fontSize:12, color:PPT_COR.mut, align:'center' });
+
+  // ---------- SLIDES DE ANÁLISE ----------
+  if (modo === 'consolidado'){
+    addSlideAnalise(pptx, {
+      tituloSlide: titulo.toUpperCase(),
+      rows: State.rows,
+      assA, assB,
+      mostrarComparativo: false
+    });
+  } else {
+    const mapMes = new Map();
+    State.rows.forEach(r => {
+      if (!r.ab) return;
+      const k = `${r.ab.getFullYear()}-${p2(r.ab.getMonth()+1)}`;
+      if (!mapMes.has(k)) mapMes.set(k, []);
+      mapMes.get(k).push(r);
+    });
+    const meses = [...mapMes.keys()].sort();
+    meses.forEach(k => {
+      const [ano, mm] = k.split('-');
+      addSlideAnalise(pptx, {
+        tituloSlide: `${MESES_PT[+mm-1].toUpperCase()} DE ${ano}`,
+        rows: mapMes.get(k),
+        assA, assB,
+        mostrarComparativo: true
+      });
+    });
+  }
+
+  // ---------- SLIDE DE EVOLUÇÃO ----------
+  addSlideEvolucao(pptx);
+
+  const nome = 'analise_os_' + new Date().toISOString().slice(0,10) + '.pptx';
+  await pptx.writeFile({ fileName: nome });
+  Toast.ok('Apresentação gerada', nome);
+}
+
+function addSlideAnalise(pptx, opt){
+  const slide = pptx.addSlide();
+  slide.background = { color: PPT_COR.bg };
+
+  slide.addShape(pptx.ShapeType.rect, { x:0, y:0, w:'100%', h:0.28, fill:{color:PPT_COR.bar} });
+  slide.addText(opt.tituloSlide, {
+    x:0.4, y:0.35, w:12.5, h:0.45,
+    fontSize:18, bold:true, color:PPT_COR.accent, align:'center'
+  });
+
+  const rowsA = opt.assA ? opt.rows.filter(r => r.assunto === opt.assA) : opt.rows;
+  const rowsB = opt.assB ? opt.rows.filter(r => r.assunto === opt.assB) : [];
+
+  const temDuas = rowsB.length > 0;
+  const colW = temDuas ? 6.15 : 12.5;
+  const colX = temDuas ? [0.4, 6.85] : [0.4];
+  const colY = 0.95;
+
+  drawColunaAnalise(slide, pptx, colX[0], colY, colW, rowsA,
+    opt.assA || 'Todos os assuntos', opt.mostrarComparativo);
+
+  if (temDuas){
+    drawColunaAnalise(slide, pptx, colX[1], colY, colW, rowsB,
+      opt.assB, opt.mostrarComparativo);
+  }
+}
+
+function drawColunaAnalise(slide, pptx, x, y, w, rows, titulo, mostrarComp){
+  const s = kpiStatsPPT(rows);
+  const n = s.nFin;
+
+  slide.addShape(pptx.ShapeType.rect, {
+    x, y, w, h:0.32, fill:{color:'0F1B33'}, line:{ color:PPT_COR.cardLine, width:0.5 }
+  });
+  slide.addText(titulo.toUpperCase(), {
+    x:x+0.1, y:y+0.02, w:w-0.2, h:0.28,
+    fontSize:11, bold:true, color:PPT_COR.accent
+  });
+
+  // KPIs
+  const gap  = 0.06;
+  const kpiW = (w - 3*gap) / 4;
+  const kpiH = 0.62;
+  const kRows = [
+    [
+      ['TOTAL DE OS',     fmtN(s.total)],
+      ['FINALIZADAS',     fmtN(n)],
+      ['ABERTAS',         fmtN(s.porStatus['Aberta'])],
+      ['ATÉ 24H',         fmtN(s.b[0])]
+    ],
+    [
+      ['ACIMA DE 72H',    fmtN(s.b[3])],
+      ['TEMPO MÉDIO',     fmtH(s.avg)],
+      ['TEMPO MEDIANO',   fmtH(s.med)],
+      ['SLA CUMPRIDO',    fmtN(s.slaOk)]
+    ]
+  ];
+  kRows.forEach((linha, ri) => {
+    linha.forEach((kpi, ci) => {
+      const kx = x + ci*(kpiW+gap);
+      const ky = y + 0.4 + ri*(kpiH+gap);
+      slide.addShape(pptx.ShapeType.rect, {
+        x:kx, y:ky, w:kpiW, h:kpiH,
+        fill:{color:PPT_COR.card}, line:{ color:PPT_COR.cardLine, width:0.5 }
+      });
+      slide.addText(kpi[0], {
+        x:kx+0.07, y:ky+0.04, w:kpiW-0.14, h:0.18,
+        fontSize:7, bold:true, color:PPT_COR.mut
+      });
+      slide.addText(String(kpi[1]), {
+        x:kx+0.07, y:ky+0.2, w:kpiW-0.14, h:0.36,
+        fontSize:13, bold:true, color:PPT_COR.ink
+      });
+    });
+  });
+
+  // Resumo
+  const rY = y + 0.4 + 2*(kpiH+gap) + 0.12;
+  slide.addText('RESUMO DA ANÁLISE', {
+    x, y:rY, w, h:0.22, fontSize:9, bold:true, color:PPT_COR.accent
+  });
+  const texto =
+    `Das ${fmtN(s.total)} OS analisadas, ${fmtN(n)} estão finalizadas e ` +
+    `${fmtN(s.porStatus['Aberta'] + s.porStatus['Em andamento'])} seguem abertas/em andamento.\n` +
+    `${fmtN(s.b[0])} finalizadas em até 24h (${pct(s.b[0],n)}), ` +
+    `${fmtN(s.b[1]+s.b[2])} entre 24 e 72h (${pct(s.b[1]+s.b[2],n)}) e ` +
+    `${fmtN(s.b[3])} acima de 72h (${pct(s.b[3],n)}).\n` +
+    `Tempo médio: ${fmtH(s.avg)} · Mediano: ${fmtH(s.med)} · ` +
+    `Menor: ${fmtH(s.min)} · Maior: ${fmtH(s.max)}.\n` +
+    `SLA cumprido: ${pct(s.slaOk, s.slaOk + s.slaKo)} ` +
+    `(${fmtN(s.slaOk)} OK · ${fmtN(s.slaKo)} violadas).`;
+  slide.addText(texto, {
+    x:x+0.05, y:rY+0.24, w:w-0.1, h:1.15,
+    fontSize:8.5, color:PPT_COR.ink, lineSpacingMultiple:1.15, valign:'top'
+  });
+
+  // Tabela dia da semana
+  const tY = rY + 1.48;
+  slide.addText('POR DIA DA SEMANA', {
+    x, y:tY, w, h:0.22, fontSize:9, bold:true, color:PPT_COR.accent
+  });
+
+  const DIAS_LOCAL = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
+  const fin = rows.filter(r => r.st === 'Finalizada' && r.h != null);
+  const buckets = DIAS_LOCAL.map(() => ({ n:0, b:[0,0,0,0], hs:[] }));
+  fin.forEach(r => {
+    if (!r.fe) return;
+    const d = (r.fe.getDay() + 6) % 7;
+    buckets[d].n++;
+    buckets[d].b[r.fx]++;
+    buckets[d].hs.push(r.h);
+  });
+
+  const header = ['Dia','Fin.','24h','24-72h','+72h','%24h','%+72h','Médio'];
+  const aoa = [[
+    ...header.map(h => ({ text:h, options:{ bold:true, color:PPT_COR.accent, fontSize:7.5, fill:{color:PPT_COR.card} } }))
+  ]];
+  DIAS_LOCAL.forEach((d, i) => {
+    const x = buckets[i];
+    aoa.push([
+      { text:d,                              options:{ fontSize:7.5, color:PPT_COR.ink } },
+      { text:fmtN(x.n),                      options:{ fontSize:7.5, color:PPT_COR.ink, align:'right' } },
+      { text:fmtN(x.b[0]),                   options:{ fontSize:7.5, color:PPT_COR.ink, align:'right' } },
+      { text:fmtN(x.b[1]+x.b[2]),            options:{ fontSize:7.5, color:PPT_COR.ink, align:'right' } },
+      { text:fmtN(x.b[3]),                   options:{ fontSize:7.5, color:PPT_COR.ink, align:'right' } },
+      { text:pct(x.b[0], x.n),               options:{ fontSize:7.5, color:PPT_COR.ink, align:'right' } },
+      { text:pct(x.b[3], x.n),               options:{ fontSize:7.5, color:PPT_COR.ink, align:'right' } },
+      { text:fmtH(mean(x.hs)),               options:{ fontSize:7.5, color:PPT_COR.ink, align:'right' } }
+    ]);
+  });
+
+  slide.addTable(aoa, {
+    x, y:tY + 0.24, w,
+    colW: [1.05, 0.55, 0.55, 0.65, 0.55, 0.55, 0.6, 0.75],
+    border: { type:'solid', color:PPT_COR.cardLine, pt:0.5 },
+    fill:   { color:PPT_COR.card },
+    rowH: 0.24,
+    autoPage: false
+  });
+
+  // Comparativo fim de semana x dias úteis
+  if (mostrarComp){
+    const fds  = buckets.slice(4).reduce((a,b) => ({
+      n:a.n+b.n,
+      b:[a.b[0]+b.b[0],a.b[1]+b.b[1],a.b[2]+b.b[2],a.b[3]+b.b[3]],
+      hs:[...a.hs, ...b.hs]
+    }), { n:0, b:[0,0,0,0], hs:[] });
+    const util = buckets.slice(0,4).reduce((a,b) => ({
+      n:a.n+b.n,
+      b:[a.b[0]+b.b[0],a.b[1]+b.b[1],a.b[2]+b.b[2],a.b[3]+b.b[3]],
+      hs:[...a.hs, ...b.hs]
+    }), { n:0, b:[0,0,0,0], hs:[] });
+    const dif = (fds.n && util.n) ? (mean(fds.hs) - mean(util.hs)) : null;
+    if (fds.n && util.n){
+      const compTxt =
+        `${fmtN(fds.n)} OS finalizadas de sexta a domingo (${pct(fds.n, fds.n+util.n)} do total): ` +
+        `${pct(fds.b[0], fds.n)} em até 24h · ${pct(fds.b[3], fds.n)} acima de 72h. ` +
+        `Segunda a quinta: ${pct(util.b[0], util.n)} em até 24h · ${pct(util.b[3], util.n)} acima de 72h. ` +
+        `Tempo médio: ${fmtH(mean(fds.hs))} (fds) vs ${fmtH(mean(util.hs))} (úteis) — ` +
+        `diferença de ${fmtH(Math.abs(dif))} ${dif >= 0 ? 'a mais' : 'a menos'} no fim de semana.`;
+      slide.addText(compTxt, {
+        x:x+0.05, y:tY + 0.24 + 8*0.24 + 0.06,
+        w:w-0.1, h:0.55, fontSize:7.5, italic:true, color:PPT_COR.mut,
+        lineSpacingMultiple:1.1, valign:'top'
+      });
+    }
+  }
+}
+
+function addSlideEvolucao(pptx){
+  const chart = State.charts['chEvo'];
+  if (!chart) return;
+  const slide = pptx.addSlide();
+  slide.background = { color: PPT_COR.bg };
+  slide.addShape(pptx.ShapeType.rect, { x:0, y:0, w:'100%', h:0.28, fill:{color:PPT_COR.bar} });
+  slide.addText('EVOLUÇÃO DO TEMPO MÉDIO', {
+    x:0.4, y:0.35, w:12.5, h:0.45,
+    fontSize:18, bold:true, color:PPT_COR.accent, align:'center'
+  });
+  try {
+    const img = chart.toBase64Image('image/png', 1);
+    slide.addImage({ data: img, x:0.5, y:1.0, w:12.33, h:5.9 });
+  } catch(e){ /* ignora */ }
+}
+
+/* ============================================================
    TEMA
 ============================================================ */
 $('btnTheme').onclick = () => {
@@ -1879,12 +2162,12 @@ $('btnClear').onclick = () => {
   $('btnImport').textContent = '📂 Importar CSV';
   $('app').classList.add('hide');
   $('empty').classList.remove('hide');
-  ['btnMap','btnClear'].forEach(b => $(b).classList.add('hide'));
+  ['btnMap','btnClear','btnApresentacao'].forEach(b => $(b).classList.add('hide'));
   Toast.ok('Dados removidos', 'Sistema pronto para uma nova importação.');
 };
 
 /* ============================================================
-   RIPPLE em botões (item 10)
+   RIPPLE em botões
 ============================================================ */
 document.addEventListener('click', e => {
   const btn = e.target.closest('.btn');
@@ -1901,7 +2184,7 @@ document.addEventListener('click', e => {
 });
 
 /* ============================================================
-   INICIALIZAÇÃO — tema escuro é padrão para o "wow" do mesh
+   INICIALIZAÇÃO
 ============================================================ */
 document.documentElement.setAttribute('data-theme','dark');
 $('btnTheme').textContent = '☀ Tema';
